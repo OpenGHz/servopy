@@ -80,3 +80,37 @@ Source-distribution inspection confirms inclusion of the demo, pinned Panda
 asset archive, provenance checksums, Apache-2.0 license, documentation,
 recordings and optional tests. The basic package remains independent of
 MuJoCo; no geometry collision monitor or robot driver was added to Servo.
+
+## Panda joint-position modes
+
+The `joint-position` and `ik-position` options were tested with the same
+MuJoCo 3.13.0 / Python 3.12 environment. All 86 Python tests passed, including
+14 Panda tests. The latter exercise all three modes for 18 seconds, check
+reference limits, measured joint limits and actuator force bounds, and verify
+final HOLD. Direct joint mode is checked without IK/Jacobian calls. Further
+checks cover position-actuator angle semantics, full-pose Python IK and an
+unreachable target, braking on six types of failed/invalid external IK output,
+and avoiding a zero-angle command on REJECT.
+
+Both added modes send interpolated joint angles to the original Menagerie
+position actuators. They retain the original PD gains and have no bias or
+desired-velocity feedforward, so gravity produces a steady-state offset.
+The 18-second direct-joint run had 16.76 mm TCP RMSE and 6.725 mm final error;
+the position-IK run had 15.45 mm RMSE, 6.722 mm final error and zero IK failures.
+Their target paths differ; these are not directly comparable solver benchmarks.
+The original torque run reproduced its previous metrics exactly.
+
+Both modes also completed the minimum 6-second duration without REJECT.
+At that deliberately fast duration the position-IK continuity check rejected
+331 solutions, and final TCP error was 180.5 mm. The documentation therefore
+calls out that completion/HOLD does not mean successful target tracking,
+and recommends the default 18-second demonstration.
+
+The new IK-position mode also completed an EGL recording: 18 seconds,
+216 frames, 640 x 480 at 12 fps, with identical tracking metrics. A middle
+frame was inspected for the mode label and target/measured paths. This was
+a temporary verification recording; the existing README media still show
+the default torque mode. A fresh interactive-viewer check could not be
+completed in this session because the virtual X server could not create
+its listening socket. The previous viewer check above is for torque mode;
+it is not claimed as a new position-mode desktop validation.

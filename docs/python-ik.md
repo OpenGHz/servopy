@@ -14,6 +14,8 @@
 
 下面以第一种情况为例。应用层负责调用自己的 IK 和关节位置反馈律，Servo 负责生成满足关节约束的短周期参考，下游控制器负责执行。
 
+可直接运行的例子见 [Panda / MuJoCo 示例](mujoco-panda.md#三种控制模式)：`python examples/mujoco_panda.py --control-mode ik-position` 会打开 viewer，用 Python 位姿 IK 求解后通过 JointJog 生成参考，再发送给 Panda 位置执行器。`PandaSimulation(control_mode="ik-position", ik_solver=solve_ik)` 支持传入已有求解器；`--control-mode joint-position` 则跳过 IK，直接跟踪关节目标。
+
 ## 接入前对齐数据约定
 
 | 项目 | 约定 |

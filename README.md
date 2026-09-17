@@ -35,9 +35,17 @@ python -m pip install ./servo_py-0.1.0-cp312-cp312-linux_x86_64.whl
 ```bash
 CMAKE_BUILD_PARALLEL_LEVEL=2 python -m pip install '.[mujoco]'
 python examples/mujoco_panda.py
+
+# 直接给定七个关节的目标位置，使用 Panda 位置执行器。
+python examples/mujoco_panda.py --control-mode joint-position
+
+# 末端位姿 → Python IK → 关节目标 → Panda 位置执行器。
+python examples/mujoco_panda.py --control-mode ik-position
 ```
 
-示例以 100 Hz 调用 Servo，使用 MuJoCo 的关节位置和速度反馈，由 500 Hz 力矩控制循环驱动 Panda。末端保持朝向，跟踪空间八字轨迹，最后发送停止命令。橙色为目标路径，青色为实际末端轨迹。上方动画来自这段动力学仿真的实际录制。
+示例以 100 Hz 调用 Servo，使用 MuJoCo 的关节位置和速度反馈，以 500 Hz 插值参考并推进物理。默认 `--control-mode torque` 使用力矩控制，末端保持朝向、跟踪空间八字轨迹；`joint-position` 直接跟踪关节轨迹，`ik-position` 先用 Python 位置 IK 求解同一八字位姿轨迹，再进行关节位控。两种位控均通过 `JointJogCommand` 使用 Servo 的关节约束，将关节角写入模型原有位置执行器的 `ctrl`，最后发送停止命令。
+
+橙色为目标路径，青色为实际末端轨迹。上方动画仍对应默认力矩模式。位控保留模型原始 PD 增益，未添加重力补偿，因此会有静态误差。模式区别、实测指标和替换自己的 Python IK 见 [示例文档](docs/mujoco-panda.md#三种控制模式)。
 
 在 Linux 无桌面环境中录制：
 
@@ -46,7 +54,7 @@ MUJOCO_GL=egl python examples/mujoco_panda.py --headless \
   --record panda-servo.mp4 --metrics panda-servo.json
 ```
 
-MuJoCo 是可选依赖；基础包仍仅依赖 NumPy。该示例使用 MuJoCo 的 FK/Jacobian 回调与 Servo 内置微分 IK，未启用 Servo 的外部碰撞监控。macOS 的 viewer 请使用 `mjpython examples/mujoco_panda.py`。
+MuJoCo 是可选依赖；基础包仍仅依赖 NumPy。三个模式均未启用 Servo 的外部碰撞监控；两种 JointJog 位控模式不执行内置笛卡尔限速或奇异性减速。macOS 的 viewer 请使用 `mjpython examples/mujoco_panda.py`，同样支持 `--control-mode`。
 
 **最小示例**
 
