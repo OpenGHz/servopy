@@ -48,3 +48,35 @@ No physical robot, ROS/MoveIt runtime, geometric collision detector, jerk
 limiter or upstream numerical-equivalence test was exercised. Real-device
 integration still requires its own feedback timing, buffer cancellation and
 stop contract.
+
+## Panda MuJoCo example
+
+The optional Panda example was tested with MuJoCo 3.13.0 on the Linux /
+Python 3.12 environment above. The expanded suite passed 75 tests with both
+Pinocchio and MuJoCo installed. The base environment still passed 69 tests,
+with the two optional backend modules skipped.
+
+The three added tests cover the Panda TCP Jacobian against finite differences,
+isolation of kinematics probes from live physics, and a complete 18-second
+dynamics run. The latter checks reference position/velocity/acceleration
+limits, measured joint positions, actual motion, and final HOLD. Simulation
+feedback comes from integrated MuJoCo qpos/qvel, not reference replay.
+
+The default interactive viewer completed the same 1800 Servo steps using
+GLFW with an Xvfb virtual X11 display, and exited with code 0. The rendering
+threads are joined after closing the passive viewer to avoid interpreter /
+GLFW shutdown races. A window screenshot was inspected. This is a virtual
+display check, not a test of every desktop GPU/driver or manual interaction.
+
+The committed MP4 was rendered using EGL: 18 seconds, 540 frames, 960 x 640,
+30 fps, H.264. The README GIF contains 216 frames at 640 x 427. Beginning,
+middle and ending video frames and a GIF frame were inspected. The recorded
+trajectory had 7.04 mm TCP position RMSE, 17.62 mm maximum error and 0.077 mm
+final error; final action was HOLD. See `media/panda-servo.json` for the
+unrounded measured results. These are simulation tracking results, not
+physical-robot accuracy specifications.
+
+Source-distribution inspection confirms inclusion of the demo, pinned Panda
+asset archive, provenance checksums, Apache-2.0 license, documentation,
+recordings and optional tests. The basic package remains independent of
+MuJoCo; no geometry collision monitor or robot driver was added to Servo.

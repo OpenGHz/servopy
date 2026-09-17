@@ -9,18 +9,19 @@ description = "ROS-independent C++ online joint and Cartesian servoing with Pyth
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
-license-files = ["LICENSE", "NOTICE", "LICENSES/*"]
+license-files = ["LICENSE", "NOTICE", "LICENSES/*", "examples/assets/PANDA-LICENSE.txt"]
 dependencies = ["numpy>=1.23"]
 
 [project.optional-dependencies]
 pinocchio = ["pin>=3.0"]
 test = ["pytest>=7"]
+mujoco = ["mujoco>=3.2,<4", "imageio>=2.34", "imageio-ffmpeg>=0.4.9"]
 
 [tool.scikit-build]
 cmake.version = ">=3.20"
 wheel.packages = ["src/servo_py"]
 build-dir = "build/{wheel_tag}"
-sdist.include = ["cpp/*.cpp", "include/**/*.hpp", "cmake/*.in", "tests/*.py", "tests/*.cpp", "examples/*.py", "examples/*.urdf", "docs/*.md", "docs/*.json", "LICENSES/*.txt", "NOTICE"]
+sdist.include = ["cpp/*.cpp", "include/**/*.hpp", "cmake/*.in", "tests/*.py", "tests/*.cpp", "examples/*.py", "examples/*.urdf", "examples/assets/*", "docs/*.md", "docs/*.json", "docs/media/*", "LICENSES/*.txt", "NOTICE"]
 sdist.exclude = ["build/**", "dist/**", ".venv/**", ".pytest_cache/**", "**/__pycache__/**"]
 
 [tool.pytest.ini_options]

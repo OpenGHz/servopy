@@ -10,3 +10,12 @@ equivalent to MoveIt Servo.
 Build dependencies include Eigen (MPL-2.0) and pybind11 (BSD-3-Clause).
 Their license texts are included under LICENSES. Eigen source headers are
 available from https://gitlab.com/libeigen/eigen (Eigen 3.4 series).
+
+The optional MuJoCo example bundles the Franka Emika Panda model from
+Google DeepMind MuJoCo Menagerie, licensed under Apache-2.0.
+Source: https://github.com/google-deepmind/mujoco_menagerie
+Commit: 71f066ad0be9cd271f7ed58c030243ef157af9f4
+Original model files and meshes are preserved in examples/assets/panda.zip.
+The license is reproduced in examples/assets/PANDA-LICENSE.txt. Checksums
+and provenance are recorded in examples/assets/panda-source.json. The demo
+modifies scene settings and arm actuators in memory and adds a TCP site.

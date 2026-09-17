@@ -24,6 +24,30 @@ python -m pip install ./servo_py-0.1.0-cp312-cp312-linux_x86_64.whl
 
 随交付提供的 wheel 仅对应 CPython 3.12、Linux x86_64，在 Ubuntu 24.04/glibc 2.39 环境构建，未经 manylinux 修复；其他平台或较老系统请从源码构建。项目声明支持 Python 3.10+，当前实际验证环境为 Python 3.12。
 
+**Panda + MuJoCo 仿真**
+
+![Panda 在 MuJoCo 中使用 servo-py 跟踪空间八字轨迹](docs/media/panda-servo.gif)
+
+[完整 MP4 录制](docs/media/panda-servo.mp4) · [运行与实现说明](docs/mujoco-panda.md) · [本次录制指标](docs/media/panda-servo.json)
+
+从源码根目录运行，**默认打开 MuJoCo viewer**，演示 18 秒后自动结束；空格暂停/继续，关闭窗口退出。模型和 mesh 已随仓库提供，无需运行时下载。
+
+```bash
+CMAKE_BUILD_PARALLEL_LEVEL=2 python -m pip install '.[mujoco]'
+python examples/mujoco_panda.py
+```
+
+示例以 100 Hz 调用 Servo，使用 MuJoCo 的关节位置和速度反馈，由 500 Hz 力矩控制循环驱动 Panda。末端保持朝向，跟踪空间八字轨迹，最后发送停止命令。橙色为目标路径，青色为实际末端轨迹。上方动画来自这段动力学仿真的实际录制。
+
+在 Linux 无桌面环境中录制：
+
+```bash
+MUJOCO_GL=egl python examples/mujoco_panda.py --headless \
+  --record panda-servo.mp4 --metrics panda-servo.json
+```
+
+MuJoCo 是可选依赖；基础包仍仅依赖 NumPy。该示例使用 MuJoCo 的 FK/Jacobian 回调与 Servo 内置微分 IK，未启用 Servo 的外部碰撞监控。macOS 的 viewer 请使用 `mjpython examples/mujoco_panda.py`。
+
 **最小示例**
 
 以下代码使用仓库内的二维机械臂。关节速度为 rad/s 或 m/s，Twist 的线速度为 m/s、角速度为 rad/s。
@@ -116,6 +140,7 @@ python -m build
 ```
 
 如需验证 Pinocchio 对照测试，安装 `.[pinocchio,test]`；没有 Pinocchio 时该模块自动跳过。
+Panda 的 FK/Jacobian 与动力学跟踪测试需要 `.[mujoco,test]`，运行测试无需显示器或 OpenGL 上下文。
 
 独立 C++ 编译只要求编译器、CMake 和 Eigen 3.4，不需要 Python：
 

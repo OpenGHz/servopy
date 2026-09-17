@@ -1,0 +1,31 @@
+{
+  "mujoco_version": "3.13.0",
+  "physics_hz": 500,
+  "servo_hz": 100,
+  "simulated_seconds": 18.0,
+  "steps": 1800,
+  "feedback": "MuJoCo qpos/qvel",
+  "position_rmse_m": 0.007039317388547801,
+  "position_max_error_m": 0.01761562894780378,
+  "final_position_error_m": 7.669327875362666e-05,
+  "max_joint_tracking_error_rad": 0.0016016912995364674,
+  "final_action": "HOLD",
+  "actions": {
+    "HOLD": 434,
+    "TRACK": 1364,
+    "BRAKE": 2
+  },
+  "flags": [
+    "COLLISION_DISABLED",
+    "GOAL_REACHED",
+    "MODE_SWITCH"
+  ],
+  "servo_collision_monitor": "disabled",
+  "trajectory": "figure eight, fixed TCP orientation",
+  "completed": true,
+  "recording": {
+    "fps": 30,
+    "width": 960,
+    "height": 640
+  }
+}
