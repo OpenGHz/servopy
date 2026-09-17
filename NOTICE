@@ -1,0 +1,12 @@
+servo-py is an independent implementation informed by the MoveIt Servo
+architecture. It is not affiliated with or endorsed by the MoveIt project.
+Upstream examined: https://github.com/moveit/moveit2
+Commit: 093360fef2ea8269c607821b551ffb2d4bc5c9a8 (moveit_servo 2.15.2)
+Upstream MoveIt Servo source is BSD-3-Clause; no MoveIt source is bundled.
+This implementation changes inverse kinematics, reference generation,
+singularity handling, timing and fault semantics; it is not behaviorally
+equivalent to MoveIt Servo.
+
+Build dependencies include Eigen (MPL-2.0) and pybind11 (BSD-3-Clause).
+Their license texts are included under LICENSES. Eigen source headers are
+available from https://gitlab.com/libeigen/eigen (Eigen 3.4 series).

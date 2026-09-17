@@ -1,0 +1,16 @@
+{
+  "servo_py": "0.1.0",
+  "python": "3.12.14",
+  "platform": "Linux-6.18.44-x86_64-with-glibc2.39",
+  "model": "synthetic arm6",
+  "backend": "native SerialChainModel",
+  "command": "Twist",
+  "steps": 5000,
+  "warmup_steps": 200,
+  "time_unit": "microseconds",
+  "p50": 13.941,
+  "p95": 18.728450000000002,
+  "p99": 40.93331000000007,
+  "max": 2595.6240000000003,
+  "scope": "Python Servo.step compute only; simulated time, ideal feedback, collision disabled; not a real-time deadline test"
+}

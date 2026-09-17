@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<robot name="planar2">
+  <link name="base"/>
+  <link name="link1"/>
+  <link name="link2"/>
+  <link name="tool"/>
+  <joint name="shoulder" type="revolute">
+    <parent link="base"/><child link="link1"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.14" upper="3.14" velocity="1.5" effort="10"/>
+  </joint>
+  <joint name="elbow" type="revolute">
+    <parent link="link1"/><child link="link2"/>
+    <origin xyz="1 0 0"/><axis xyz="0 0 1"/>
+    <limit lower="-3.14" upper="3.14" velocity="1.5" effort="10"/>
+  </joint>
+  <joint name="tcp" type="fixed">
+    <parent link="link2"/><child link="tool"/><origin xyz="1 0 0"/>
+  </joint>
+</robot>

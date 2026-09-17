@@ -1,0 +1,29 @@
+[build-system]
+requires = ["scikit-build-core>=0.10", "pybind11>=2.13", "cmeel-eigen>=3.4,<4"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "servo-py"
+version = "0.1.0"
+description = "ROS-independent C++ online joint and Cartesian servoing with Python bindings"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE", "NOTICE", "LICENSES/*"]
+dependencies = ["numpy>=1.23"]
+
+[project.optional-dependencies]
+pinocchio = ["pin>=3.0"]
+test = ["pytest>=7"]
+
+[tool.scikit-build]
+cmake.version = ">=3.20"
+wheel.packages = ["src/servo_py"]
+build-dir = "build/{wheel_tag}"
+sdist.include = ["cpp/*.cpp", "include/**/*.hpp", "cmake/*.in", "tests/*.py", "tests/*.cpp", "examples/*.py", "examples/*.urdf", "docs/*.md", "docs/*.json", "LICENSES/*.txt", "NOTICE"]
+sdist.exclude = ["build/**", "dist/**", ".venv/**", ".pytest_cache/**", "**/__pycache__/**"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = ["pinocchio: optional Pinocchio backend parity tests"]
