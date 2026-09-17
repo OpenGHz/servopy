@@ -99,6 +99,12 @@ model = PinocchioModel.from_urdf(
 
 这个适配器使用 Python 回调，会重新获取 GIL，适合模型对照与研究。原生 `load_urdf` 路径的运动学和 Servo 计算均在 C++ 中执行。默认导入 `servo_py` 不导入或依赖 Pinocchio。
 
+**接入已有的 Python IK**
+
+已有的位置 IK 可以在应用层转换为 `JointJogCommand`，继续使用 Servo 的关节约束和参考生成，无需修改 C++ 内核。完整接入步骤、示例代码、时间戳及故障处理见 [Python IK 接入教程](docs/python-ik.md)。
+
+当前 `PoseCommand` / `TwistCommand` 使用内置微分 IK，尚未提供自定义 IK 求解器入口；JointJog 接法的笛卡尔限速、奇异性策略和路径边界在教程中单独说明。
+
 **构建和测试**
 
 ```bash
