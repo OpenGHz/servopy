@@ -2,7 +2,7 @@
 
 **目标：** 在 MuJoCo 中运行实时伺服控制循环，用实际动力学反馈持续跟踪目标，并比较三条控制路径。伺服循环为 100 Hz，物理积分为 500 Hz。前置：安装 `.[mujoco]`。所有源码命令从仓库根目录执行。
 
-通过 PyPI 安装后，无需源码仓库：安装 `servo-py[mujoco]`，将本页 `python examples/mujoco_panda.py` 替换为 **`servo-py-panda`** 即可，参数完全相同。Panda 模型单独下载，不包含在 wheel 或源码发行包中。安装范围见[安装指南](getting-started.md)。
+通过 PyPI 安装后，无需源码仓库：安装 `servo-py[mujoco]`，将本页 `python examples/mujoco_panda.py` 替换为 **`servo-py-panda`** 即可。下文会标明仅在 main 源码中提供、尚未发布的选项。Panda 模型单独下载，不包含在 wheel 或源码发行包中。安装范围见[安装指南](getting-started.md)。
 
 ## 先运行默认示例
 

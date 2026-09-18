@@ -387,3 +387,35 @@ demonstration, not a wall-clock latency or hardware-frequency benchmark.
 
 The documentation checker passed link, API, configuration, CLI and example
 checks across 31 Markdown pages. The strict MkDocs build also passed.
+
+## Draggable Panda target
+
+Date: 2026-09-18. The current main branch adds `--interactive-target`;
+the published PyPI 0.3.0 package does not contain this option.
+
+Local Linux x86_64 / CPython 3.12.14 validation with MuJoCo 3.13.0,
+Pinocchio 4.1.0 and Ruckig 0.19.4 passed **199 tests**. Added cases apply
+MuJoCo's native mocap perturbations for translation and rotation, change
+targets during motion in torque and IK position modes, and repeat both
+paths with Ruckig smoothing. They also cover unreachable IK targets,
+resetting the target without resetting physics or Servo, explicit-duration
+stopping, incompatible CLI options, and continued control beyond 20 seconds
+with bounded visual history and full-session summary metrics.
+
+All ten executable documentation examples and the strict MkDocs build passed.
+The documentation checker verified 31 Markdown pages and all 25 Panda CLI
+options.
+
+The **Interactive Panda viewer** job in [the CI run](https://github.com/OpenGHz/servopy/actions/runs/35341109258)
+passed on Ubuntu 24.04 / Python 3.12 with an Xvfb display. It launched the
+installed CLI outside the checkout and sent real X11 mouse and keyboard
+events. Ctrl-right dragging moved the selected target by about 49 mm and
+the measured joints followed; Ctrl-left dragging changed its orientation.
+The check also passed pause-and-drag, F6 target reset, resume, continued
+pose tracking beyond the ordinary demo's 18-second limit, and window closure
+with exit code 0. Logs, metrics and four window screenshots are retained
+in the run's `panda-viewer-check` artifact for seven days.
+
+This checks native viewer interaction and simulation behavior on a virtual
+display. It is not a hardware-control timing or physical-robot accuracy
+measurement.
