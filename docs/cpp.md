@@ -1,6 +1,8 @@
 # 原生 C++ 接入
 
-**目标：** 不依赖 Python 构建 ServoCore，并在自己的 CMake 工程中链接。要求 C++17、CMake 3.20+ 和 Eigen 3.4。
+**目标：** 不依赖 Python 构建 ServoCore，并在自己的 CMake 工程中链接。需要支持 **C++17 或更新标准** 的编译器及标准库、**CMake 3.20 或更新版本**，以及 **Eigen 3.4 或更新的兼容版本**。
+
+CMake 通过 `target_compile_features(servo_core PUBLIC cxx_std_17)` 声明最低语言标准。代码和公共头文件使用 `std::optional`、`std::clamp` 等 C++17 特性；C++11/C++14 模式不满足要求。C++20/C++23 满足这一标准下限，但尚未逐一验证对应的工具链与依赖组合。实际测试环境见[验证记录](validation.md)。
 
 ## 1. 构建与验证
 
@@ -14,6 +16,8 @@ ctest --test-dir build-native --output-on-failure
 ```
 
 若 Eigen 不在系统查找路径，配置时追加 `-DCMAKE_PREFIX_PATH=/path/to/eigen/prefix`，换成本机实际目录。原生测试覆盖关节目标收敛、停止、QP 和采样；源码见 [cpp_smoke.cpp](https://github.com/OpenGHz/servopy/blob/main/tests/cpp_smoke.cpp)。
+
+如需显式选择 C++20，可在上述配置命令中追加 `-DCMAKE_CXX_STANDARD=20`。原生构建通过 `find_package(Eigen3 3.4 REQUIRED NO_MODULE)` 查找兼容的 Eigen；Python 隔离构建另有 `cmeel-eigen>=3.4,<4` 的依赖范围，见[安装要求](getting-started.md#1-准备环境)。
 
 ## 2. 安装到用户目录
 
@@ -29,7 +33,7 @@ add_executable(app main.cpp)
 target_link_libraries(app PRIVATE servo_py::core)
 ```
 
-配置消费工程时把 `dist/native` 的绝对路径加入 `CMAKE_PREFIX_PATH`。导出目标传递 Eigen 与 C++17 要求；头文件为 `servo_py/servo.hpp`。
+配置消费工程时把 `dist/native` 的绝对路径加入 `CMAKE_PREFIX_PATH`。导出目标传递 Eigen 依赖与 C++17 的最低标准要求；消费工程可以选择更新的 C++ 标准。头文件为 `servo_py/servo.hpp`。
 
 ## 3. 对齐 Python 与 C++ 名称
 

@@ -42,7 +42,7 @@ class PyMotionGenerator : public MotionGenerator {
 };
 
 PYBIND11_MODULE(_core, m) {
-  m.doc() = "ROS-independent servo kernel (C++17/Eigen)";
+  m.doc() = "ROS-independent servo kernel (C++/Eigen; requires C++17 or newer)";
   m.attr("__version__") = "0.3.0";
   m.def("valid_pose", &valid_pose);
   m.def("rotation_log", &rotation_log);

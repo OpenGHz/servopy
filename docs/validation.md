@@ -1,5 +1,10 @@
 # Validation record
 
+The versions below identify the environments used for each recorded run.
+Declared build and dependency requirements are listed in the
+[installation guide](getting-started.md#1-准备环境); the recorded versions are
+not additional minimum or exact-version requirements.
+
 Date: 2026-09-17. Implementation: ServoPy 0.1.0.
 
 Development environment: Linux x86_64 / glibc 2.39, GCC 13.3.0,

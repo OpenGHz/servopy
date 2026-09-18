@@ -4,7 +4,21 @@
 
 ## 1. 准备环境
 
-已验证环境为 Linux x86_64、Python 3.12、GCC 13、Eigen 3.4。项目声明 Python 3.10+；其他 Python/平台组合尚未逐一验证。源码构建需要 C++17 编译器，pip 会安装隔离构建所需的 CMake、pybind11 和 Eigen 头文件依赖。
+项目声明的安装与构建要求如下，版本范围以 [pyproject.toml](https://github.com/OpenGHz/servopy/blob/main/pyproject.toml) 和 [CMakeLists.txt](https://github.com/OpenGHz/servopy/blob/main/CMakeLists.txt) 为准：
+
+| 组件 | 版本要求 | 用途 |
+|---|---|---|
+| Python | `>=3.10` | Python 接口与示例 |
+| C++ 编译器及标准库 | 支持 C++17 或更新标准 | 编译原生内核和 Python 扩展；C++17 是语言标准下限 |
+| CMake | `>=3.20` | 配置与构建 C++ 目标 |
+| Eigen | Python 隔离构建使用 `cmeel-eigen>=3.4,<4`；原生 CMake 构建请求 3.4 或更新的兼容版本 | 编译期头文件依赖 |
+| NumPy | `>=1.23` | 必需的第三方 Python 运行依赖 |
+
+C++17 中的 17 指语言标准年份，GCC 13 等数字指编译器自身的版本。C++20/C++23 满足项目声明的标准下限；具体工具链和依赖组合仍需验证。
+
+已验证环境包括 Linux x86_64、Python 3.12、GCC 13 和 Eigen 3.4，详细版本及覆盖范围见[验证记录](validation.md)。这些是用于复现实验的环境记录，不是额外的版本限制；其他 Python、平台与依赖组合尚未逐一验证。
+
+默认的 pip 隔离构建会准备 scikit-build-core、pybind11 和 Eigen 头文件依赖，并按需获取符合要求的 CMake。本机仍需提供 C++ 编译器和系统开发工具。仅链接原生内核时无需 Python，见[原生 C++ 接入](cpp.md)。
 
 ```bash
 git clone https://github.com/OpenGHz/servopy.git
@@ -51,6 +65,8 @@ python examples/track_pose.py
 | `python -m pip install '.[docs]'` | 本地文档预览与校验 |
 
 可以组合，例如 `CMAKE_BUILD_PARALLEL_LEVEL=2 python -m pip install '.[mujoco,ruckig]'`。MuJoCo、Pinocchio 和 Ruckig 都不是基础运行依赖。
+
+可选依赖有各自的版本范围：MuJoCo 为 `>=3.2,<4`，Pinocchio 的 Python 发行包 `pin` 为 `>=3.0`，Ruckig 则固定为 `==0.12.2`。Ruckig 的等号表示实际的版本锁定；验证记录中的 MuJoCo 3.13.0 等具体版本只描述已测试环境。
 
 ## 4. 运行 Panda
 

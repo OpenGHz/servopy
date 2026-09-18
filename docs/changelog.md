@@ -11,6 +11,7 @@
 - 补充快速上手、完整控制/IK 示例、参数/API/诊断/CLI 参考与排障。
 - 将高级控制长文拆成独立教程，保留原入口。
 - 增加 MkDocs Material 本地预览、中文搜索分词、文档一致性检查及 GitHub Actions 工作流。
+- 明确 C++17 为最低语言标准，区分安装依赖范围、精确版本锁定与已测试环境。
 
 ## 0.3.0 — 2026-09-18
 
@@ -40,7 +41,7 @@ CMAKE_BUILD_PARALLEL_LEVEL=2 python -m pip install --upgrade '.[mujoco,ruckig]'
 
 ## 0.1.0 — 初始实现
 
-- 独立 C++17/Eigen 内核、Python 绑定、JointJog/Twist/Pose/Stop。
+- 独立 C++/Eigen 内核（最低语言标准为 C++17）、Python 绑定、JointJog/Twist/Pose/Stop。
 - DLS、奇异性策略、关节约束、时序检查与故障锁存。
 - URDF/串联模型、Pinocchio 后端及理想回放/基准脚本。
 - 后续同版本示例更新加入 Panda 动力学、viewer/录制与两种位控路径。

@@ -11,7 +11,7 @@
 
 <p align="center">
   <strong>From robot targets to controlled motion.</strong><br>
-  C++17 core &nbsp;·&nbsp; Python API &nbsp;·&nbsp; ROS-independent
+  C++ core &nbsp;·&nbsp; Python API &nbsp;·&nbsp; ROS-independent
 </p>
 
 <p align="center">
@@ -43,11 +43,11 @@
 - **Choose the numerical tools.** Use native URDF kinematics or Pinocchio, DLS or bounded QP, and optional nullspace posture objectives.
 - **Connect and reproduce.** Run the Panda demo, bind a device SDK, stream targets, and record or replay control sessions.
 
-The default Python runtime depends only on NumPy. MuJoCo, Pinocchio and Ruckig are optional.
+NumPy is the only required third-party Python runtime dependency. Building from source also needs a C++ toolchain. MuJoCo, Pinocchio and Ruckig are optional.
 
 ## Quick start
 
-You need **Python 3.10+** and a **C++17 compiler**. The commands below target the validated Linux environment; run them from a source checkout.
+You need **Python 3.10 or newer** and a **compiler supporting C++17 or newer**. C++17 is the minimum language standard. The commands below target the validated Linux environment; run them from a source checkout. See the [installation requirements](https://openghz.github.io/servopy/getting-started/#1-准备环境) for build dependencies and the tested environment.
 
 ```bash
 git clone https://github.com/OpenGHz/servopy.git

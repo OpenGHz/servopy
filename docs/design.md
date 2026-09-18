@@ -1,6 +1,9 @@
 # Execution contract
 
-The native core is ordinary C++17 with Eigen. It has no ROS headers, clocks,
+The native core uses C++ and Eigen, with C++17 as the minimum language standard.
+Build requirements and tested environments are described in the
+[installation guide](getting-started.md#1-准备环境) and [validation record](validation.md).
+It has no ROS headers, clocks,
 threads, transport or plugin loading. The Python facade maps typed commands
 and configuration into native values; pybind11 releases the GIL during core
 step/reset calls. A Python implementation of Kinematics reacquires the GIL

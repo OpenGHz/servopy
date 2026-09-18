@@ -7,6 +7,7 @@
 | 症状 | 检查与处理 |
 |---|---|
 | 编译器不存在 | 检查本机 GCC/Clang 以及 CC/CXX 环境变量；若它们指向已删除的路径，改用实际编译器 |
+| `std::optional` / `std::clamp` 不可用 | 确认编译器及标准库支持 C++17，并使用 C++17 或更新标准编译；完整版本范围见[安装要求](getting-started.md#1-准备环境) |
 | 编译进程被杀死 | 限制并行：`CMAKE_BUILD_PARALLEL_LEVEL=2 python -m pip install .` |
 | `No module named servo_py` | 确认激活正确虚拟环境，并使用 `python -m pip` 安装 |
 | 新源码却缺少 JointPosition/QP 等 API | 重新安装 C++ 扩展，检查实际导入路径 |

@@ -11,7 +11,7 @@
 
 <p align="center">
   <strong>从机器人目标，到可控的运动。</strong><br>
-  C++17 内核 &nbsp;·&nbsp; Python 接口 &nbsp;·&nbsp; 无需 ROS
+  C++ 内核 &nbsp;·&nbsp; Python 接口 &nbsp;·&nbsp; 无需 ROS
 </p>
 
 <p align="center">
@@ -43,11 +43,11 @@
 - **选择数值后端。** 使用原生 URDF 或 Pinocchio 运动学、DLS 或盒约束 QP，以及零空间姿态目标。
 - **接入与复现。** 运行 Panda 演示、绑定设备 SDK、流式发送目标，并记录和回放控制过程。
 
-基础 Python 运行依赖只有 NumPy；MuJoCo、Pinocchio 和 Ruckig 均为可选依赖。
+必需的第三方 Python 运行依赖只有 NumPy；从源码构建还需要 C++ 工具链。MuJoCo、Pinocchio 和 Ruckig 均为可选依赖。
 
 ## 快速上手
 
-需要 **Python 3.10+** 和 **C++17 编译器**。下面的命令适用于已验证的 Linux 环境，从源码安装运行。
+需要 **Python 3.10 或更新版本**，以及**支持 C++17 或更新标准的编译器**。C++17 表示最低语言标准。下面的命令适用于已验证的 Linux 环境，从源码安装运行；构建依赖和已测试环境见[安装要求](https://openghz.github.io/servopy/getting-started/#1-准备环境)。
 
 ```bash
 git clone https://github.com/OpenGHz/servopy.git
