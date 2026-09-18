@@ -41,6 +41,9 @@ class Links(HTMLParser):
         for name in ("href", "src"):
             if attributes.get(name):
                 self.targets.append(attributes[name])
+        if attributes.get("srcset"):
+            self.targets.extend(candidate.strip().split()[0]
+                                for candidate in attributes["srcset"].split(",") if candidate.strip())
         if attributes.get("id"):
             self.anchors.add(attributes["id"])
 

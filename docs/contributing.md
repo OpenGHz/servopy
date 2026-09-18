@@ -62,6 +62,10 @@ python -m mkdocs serve
 5. 保持现有页面入口可访问；需要拆分时保留导览，避免旧链接失效。
 6. 写清观测环境、参考/反馈、仿真/实机区别；不增加未经验证的性能、兼容性、发布或 CI 状态徽章。
 
+项目展示名称写作 **ServoPy**；Python 导入名 `servo_py`、发行包名 `servo-py` 和源码路径使用实际技术名称。`README.md` 为英文默认入口，`README.zh-CN.md` 为中文全文，更新主要内容时保持两页对应；`README.en.md` 保留为旧链接入口。语言切换单独放在顶部，功能导航放在品牌区下方。
+
+Logo 位于 `docs/assets/brand/`：`logo-light.svg` 与 `logo-dark.svg` 用于 README 的 `<picture>`，`mark.svg` 用作文档站图标。使用仓库内的原生 SVG，无需外部图片服务；标题和替代文本同样使用 ServoPy。
+
 ## 文档结构参考
 
 本轮结构整理参考了 [Ruckig](https://github.com/pantor/ruckig) 的入门示例、[Pink](https://github.com/pink-kinematics/pink) 的任务与示例入口、[Pinocchio](https://github.com/stack-of-tasks/pinocchio) 的学习资源导航，以及 [MuJoCo](https://mujoco.readthedocs.io/en/stable/overview.html) 的概念与接口分层。内容按 [Diátaxis](https://diataxis.fr/) 的学习、操作、参考、解释四种需求组织；技术说明与代码均以本仓库实际实现为准。

@@ -429,7 +429,7 @@ def annotate(frame, simulation):
     except OSError:
         title_font = font = ImageFont.load_default()
     draw.rectangle((0, 0, image.width, 80), fill=(10, 18, 28, 220))
-    draw.text((24, 13), "servo-py  /  Panda in MuJoCo", fill="white", font=title_font)
+    draw.text((24, 13), "ServoPy  /  Panda in MuJoCo", fill="white", font=title_font)
     draw.text((24, 49), f"{simulation.control_mode}  |  100 Hz Servo  |  500 Hz physics", fill=(184, 205, 220), font=font)
     error = simulation.history[-1][1] * 1000 if simulation.history else 0
     action = simulation.result.action.name if simulation.result else "READY"

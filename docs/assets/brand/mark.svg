@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title desc">
+  <title id="title">ServoPy</title>
+  <desc id="desc">A continuous S-shaped motion path with two joint bearings and an amber target.</desc>
+  <rect width="96" height="96" rx="23" fill="#0f766e"/>
+  <path d="M72 24H40C30 24 24 29 24 36S30 48 40 48H56C66 48 72 53 72 60S66 72 56 72H24" fill="none" stroke="#f0fdfa" stroke-width="8" stroke-linecap="round"/>
+  <g fill="#0f766e" stroke="#f0fdfa" stroke-width="4">
+    <circle cx="24" cy="36" r="6"/>
+    <circle cx="72" cy="60" r="6"/>
+  </g>
+  <circle cx="72" cy="24" r="7" fill="#fbbf24"/>
+</svg>

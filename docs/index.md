@@ -1,4 +1,4 @@
-# servo-py 文档
+# ServoPy 文档
 
 从目标和关节反馈开始，生成可连续执行的参考。本文档对应 **0.3.0**，涵盖 C++ 内核、Python 接口与 Panda / MuJoCo 示例。
 

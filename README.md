@@ -1,18 +1,53 @@
-# servo-py
+<p align="center">
+  <strong>English</strong> &nbsp;·&nbsp; <a href="README.zh-CN.md">简体中文</a>
+</p>
 
-**把关节目标或末端目标，变成可连续执行的运动参考。**
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/brand/logo-dark.svg">
+    <img src="docs/assets/brand/logo-light.svg" alt="ServoPy" width="420">
+  </picture>
+</p>
 
-独立于 ROS/MoveIt 的在线伺服内核：C++17 / Eigen 负责计算，Python 负责接入模型、目标和设备。适合机械臂控制原型、IK 算法实验与仿真集成。基础 Python 运行依赖只有 NumPy。
+<p align="center">
+  <strong>From robot targets to controlled motion.</strong><br>
+  C++17 core &nbsp;·&nbsp; Python API &nbsp;·&nbsp; ROS-independent
+</p>
 
-[快速上手](docs/getting-started.md) · [文档目录](docs/index.md) · [Panda 演示](docs/mujoco-panda.md) · [API 参考](docs/api.md) · [English](README.en.md)
+<p align="center">
+  <a href="#quick-start">Quick start</a> &nbsp;·&nbsp;
+  <a href="#panda-demo">Panda demo</a> &nbsp;·&nbsp;
+  <a href="#documentation">Documentation</a>
+</p>
 
-![Panda 在 MuJoCo 中跟踪空间八字轨迹：橙色为目标，青色为实际 TCP 轨迹](docs/media/panda-servo.gif)
+---
 
-*默认力矩模式的实际 MuJoCo 仿真。另支持直接关节位控、位置 IK 后位控。 [视频](docs/media/panda-servo.mp4) · [录制指标](docs/media/panda-servo.json)*
+**ServoPy** turns joint or Cartesian targets and measured feedback into bounded motion references. Use it to prototype robot controllers, connect an existing IK solver, or run closed-loop experiments in MuJoCo.
 
-## 从这里开始
+<p align="center">
+  <a href="docs/media/panda-servo.mp4">
+    <img src="docs/media/panda-servo.gif" alt="Panda following a figure-eight target in MuJoCo: orange target and cyan measured TCP path" width="640">
+  </a>
+</p>
 
-以下命令适用于已验证的 Linux 环境；源码构建需要 Python 3.10+ 和 C++17 编译器。
+<p align="center">
+  Panda in MuJoCo · Recorded torque mode · 100 Hz servo / 500 Hz physics<br>
+  <a href="docs/media/panda-servo.mp4">Watch the video</a> &nbsp;·&nbsp;
+  <a href="docs/media/panda-servo.json">Measured results</a>
+</p>
+
+## What you can build
+
+- **Control in joint or Cartesian space.** Send positions, velocities, poses or twists; bring your own position IK when needed.
+- **Shape the motion.** Apply joint position, velocity and acceleration limits, with optional Ruckig jerk control.
+- **Choose the numerical tools.** Use native URDF kinematics or Pinocchio, DLS or bounded QP, and optional nullspace posture objectives.
+- **Connect and reproduce.** Run the Panda demo, bind a device SDK, stream targets, and record or replay control sessions.
+
+The default Python runtime depends only on NumPy. MuJoCo, Pinocchio and Ruckig are optional.
+
+## Quick start
+
+You need **Python 3.10+** and a **C++17 compiler**. The commands below target the validated Linux environment; run them from a source checkout.
 
 ```bash
 git clone https://github.com/OpenGHz/servopy.git
@@ -23,11 +58,11 @@ CMAKE_BUILD_PARALLEL_LEVEL=2 python -m pip install .
 python examples/track_pose.py
 ```
 
-最后一条命令不需要显示器，运行二维机械臂的理想反馈回放。预期输出包含 `"steps": 1200`、`"final_action": "HOLD"`，最终位置误差约 `9.8e-5 m`。安装选项和构建排障见 [快速上手](docs/getting-started.md)。
+No display or robot is needed. This ideal-feedback example runs **1,200 steps**, finishes in **HOLD**, and reports a final position error of approximately **9.8e-5 m**. It tests reference generation without simulating dynamics.
 
-### 一次伺服计算
+### Your first control step
 
-在仓库根目录运行以下完整代码。输入实际关节状态和目标，输出下一个周期末的参考；`Servo.step()` 本身不执行设备 I/O。
+Run this complete example from the repository root. `Servo.step()` consumes feedback and returns the next reference; your simulator or device adapter executes it.
 
 <!-- runnable: readme-step -->
 ```python
@@ -46,60 +81,58 @@ result = servo.step(
     dt=0.01, now_ns=0,
 )
 if result.action == Action.REJECT:
-    raise RuntimeError(result.message)  # 设备适配层还需取消旧缓冲并停止。
+    raise RuntimeError(result.message)
 print(result.action.name, result.reference.q)
 ```
 
-继续学习：[完整关节控制循环](docs/joint-position.md) · [反馈与参考的区别](docs/concepts.md) · [设备接入](docs/runtime.md)
+Expected output: `TRACK [ 0.50015 -0.99985]`. For execution timing and device-side stopping, read the [execution contract](docs/design.md).
 
-### 看 Panda 动起来
+## Panda demo
+
+After the quick start, add MuJoCo and choose a control mode:
 
 ```bash
 CMAKE_BUILD_PARALLEL_LEVEL=2 python -m pip install '.[mujoco]'
-python examples/mujoco_panda.py
+python examples/mujoco_panda.py --control-mode joint-position
 ```
 
-默认打开 viewer，运行 18 秒；空格暂停，关闭窗口退出。无桌面时添加 `--headless`。模型和 mesh 随源码提供，无需运行时下载。
+| `--control-mode` | Target → reference → actuator |
+|---|---|
+| `torque` (default) | Pose → differential IK → joint reference → torque control |
+| `joint-position` | Joint target → joint reference → position actuator |
+| `ik-position` | Pose → position IK → joint reference → position actuator |
 
-| 希望验证的控制方式 | 运行选项 | 目标到执行器的路径 |
-|---|---|---|
-| 末端伺服，力矩执行器 | 默认 `--control-mode torque` | 位姿 → 微分 IK → 参考 → 力矩控制 |
-| 直接关节位控 | `--control-mode joint-position` | 关节目标 → 参考 → 位置执行器 |
-| 先位置 IK 再位控 | `--control-mode ik-position` | 位姿 → 位置 IK → 关节目标 → 位置执行器 |
+The viewer runs an 18-second simulation. Press **Space** to pause, or add `--headless` to run without a display. Model assets are bundled with the source. The [Panda guide](docs/mujoco-panda.md) covers Ruckig smoothing, external targets, recording and measured tracking behavior.
 
-例如：`python examples/mujoco_panda.py --control-mode ik-position`。[完整运行指南](docs/mujoco-panda.md) 包含平滑、外部目标、录制和指标解释。
+## Documentation
 
-## 按任务选择功能
+**Guides and API reference are currently in Chinese.** The [design contract](docs/design.md) and [validation record](docs/validation.md) are in English; this README contains a complete English quick start.
 
-| 任务 | 接口 | 教程 |
-|---|---|---|
-| 给定关节位置或速度 | `JointPositionCommand` / `JointJogCommand` | [关节控制](docs/joint-position.md) |
-| 跟踪末端位姿或速度 | `PoseCommand` / `TwistCommand` | [模型与数据约定](docs/concepts.md) |
-| 接入已有位置 IK | `PositionIKAdapter` | [Python IK](docs/python-ik.md) |
-| 限制 jerk、连续加速度 | `RuckigSmoothing` | [轨迹平滑](docs/smoothing.md) |
-| 替换微分 IK、优化冗余关节 | `DifferentialIK` / `BoxQPSolver` | [QP 与零空间](docs/solvers.md) |
-| 安排控制周期、接入设备 SDK | `ServoRunner` / `CallbackDevice` | [周期与设备](docs/runtime.md) |
-| 发送实时目标、复现一次运行 | JSONL / `JsonlRecorder` / `replay` | [输入、记录与对照](docs/recording.md) |
+| Next step | Read |
+|---|---|
+| Write a controller | [Joint control](docs/joint-position.md) · [Position IK](docs/python-ik.md) |
+| Tune or extend it | [Smoothing](docs/smoothing.md) · [QP & nullspace](docs/solvers.md) · [C++](docs/cpp.md) |
+| Connect and inspect | [Devices & scheduling](docs/runtime.md) · [Recording & replay](docs/recording.md) |
+| Look up an interface | [API](docs/api.md) · [Configuration](docs/configuration.md) · [Troubleshooting](docs/troubleshooting.md) |
 
-内核还提供关节位置/速度/加速度约束、奇异性减速与离开策略、命令/反馈超时、跟踪误差检查和故障锁存。模型可使用原生 URDF 串联链、可选 Pinocchio 或自定义 `Kinematics`。
+[Browse all documentation →](docs/index.md)
 
-## 当前状态
+## Project status
 
-当前代码版本为 **0.3.0**。已验证环境为 Linux x86_64 / Python 3.12；功能验证包含 **178 项 Python 测试**、独立 C++ 测试和 Panda 三种控制模式的动力学仿真。详细条件、历史记录和复现说明见 [验证记录](docs/validation.md)。
+Source version **0.3.0** was validated on **Linux x86_64 / Python 3.12** with 178 Python tests, a standalone C++ test and Panda dynamics in all three control modes. Conditions and results are preserved in the [validation record](docs/validation.md).
 
-约束作用于生成的参考。真实设备的插值、缓冲取消和停止由设备适配层负责；Python 调度不提供硬实时保证。目前没有几何碰撞检查器或经过验证的真机驱动，位控示例保留原始 PD 的重力稳态偏差。跨平台构建和实际 MoveIt 数值等价尚未验收，见 [功能状态](docs/roadmap.md)。
+ServoPy generates references; the application owns feedback, actuator commands and device stopping. Physical-robot validation, geometric collision checking and hard real-time execution are outside the current verified scope. Position-mode Panda demos retain gravity-related tracking offsets. See the [roadmap](docs/roadmap.md) for capability boundaries.
 
-## 开发与文档
+## Contributing
+
+See the [contribution guide](CONTRIBUTING.md) for setup, relevant tests and documentation checks, and the [changelog](CHANGELOG.md) for API migration notes. You can preview the searchable documentation locally with:
 
 ```bash
-CMAKE_BUILD_PARALLEL_LEVEL=2 python -m pip install -e '.[test,docs]'
-python -m pytest -q
+python -m pip install '.[docs]'
 python scripts/check_docs.py
 python -m mkdocs serve
 ```
 
-文档支持目录导航、全文搜索、深浅主题与代码复制；也可直接在 GitHub 阅读 Markdown。[贡献指南](CONTRIBUTING.md) 说明 C++ 构建、可选测试和文档验证；[更新记录](CHANGELOG.md) 说明版本变化与迁移。
+## License
 
-## 许可证与来源
-
-项目使用 [MIT 许可证](LICENSE)。Panda 资产来自 MuJoCo Menagerie，按 Apache-2.0 分发；构建依赖和上游设计来源见 [NOTICE](NOTICE)。servo-py 是独立实现，与 MoveIt 项目没有隶属关系，不是其数值或行为兼容替代品。
+ServoPy is [MIT-licensed](LICENSE). Bundled Panda assets are Apache-2.0; their provenance and dependency notices are in [NOTICE](NOTICE). ServoPy is an independent project and does not claim MoveIt compatibility.

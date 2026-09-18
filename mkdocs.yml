@@ -1,4 +1,4 @@
-site_name: servo-py
+site_name: ServoPy
 site_description: 独立于 ROS 的 C++ / Python 在线伺服，从入门到设备接入
 repo_url: https://github.com/OpenGHz/servopy
 repo_name: OpenGHz/servopy
@@ -7,6 +7,8 @@ strict: true
 
 theme:
   name: material
+  logo: assets/brand/mark.svg
+  favicon: assets/brand/mark.svg
   language: zh
   font: false
   palette:

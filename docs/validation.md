@@ -1,6 +1,6 @@
 # Validation record
 
-Date: 2026-09-17. Implementation: servo-py 0.1.0.
+Date: 2026-09-17. Implementation: ServoPy 0.1.0.
 
 Development environment: Linux x86_64 / glibc 2.39, GCC 13.3.0,
 Python 3.12.14, Eigen 3.4.1, pybind11 3.1.0, CMake 4.4.3,
@@ -213,3 +213,21 @@ were run locally on Linux / Python 3.12:
 The [documentation workflow](https://github.com/OpenGHz/servopy/blob/main/.github/workflows/docs.yml)
 runs the checker, Python examples and strict site build. This local validation
 does not claim a completed GitHub Actions run or a deployed documentation site.
+
+## ServoPy branding and README revision
+
+Date: 2026-09-18. English is now the default README, with a separate Chinese
+translation. Local Chromium previews checked both logo themes at 1,160 px and
+English/Chinese layouts at 390 px: image loading, aspect ratio, header anchors,
+language links and horizontal overflow. The preview uses GitHub-style Markdown
+layout; it is not a screenshot of a deployed documentation site.
+
+All nine marked Python examples pass, including the examples in both READMEs.
+The source archive includes both languages, the legacy English entry and the
+three SVG brand assets. The link checker now also checks picture srcset paths.
+
+The Panda recording title was changed to ServoPy and the default torque demo
+was rendered again through EGL: 18 seconds, 1,800 control steps, 960 × 640 at
+30 fps, ending in HOLD. The refreshed GIF contains 216 frames at 640 × 427.
+Tracking metrics match the previous recording within 1e-12; the control
+implementation was not changed by this visual update.

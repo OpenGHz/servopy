@@ -1,4 +1,4 @@
-# 参与 servo-py
+# 参与 ServoPy
 
 请从 [贡献指南](docs/contributing.md) 开始：环境准备、源码结构、Python/C++ 验证、文档预览与修改约定都维护在那里。
 

@@ -1,4 +1,4 @@
-servo-py is an independent implementation informed by the MoveIt Servo
+ServoPy is an independent implementation informed by the MoveIt Servo
 architecture. It is not affiliated with or endorsed by the MoveIt project.
 Upstream examined: https://github.com/moveit/moveit2
 Commit: 093360fef2ea8269c607821b551ffb2d4bc5c9a8 (moveit_servo 2.15.2)

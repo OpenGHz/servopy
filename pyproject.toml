@@ -23,7 +23,7 @@ docs = ["mkdocs>=1.6,<2", "mkdocs-material>=9.6,<10", "jieba>=0.42.1,<1"]
 cmake.version = ">=3.20"
 wheel.packages = ["src/servo_py"]
 build-dir = "build/{wheel_tag}"
-sdist.include = ["cpp/*.cpp", "include/**/*.hpp", "cmake/*.in", "tests/*.py", "tests/*.cpp", "examples/*.py", "examples/*.urdf", "examples/assets/*", "docs/*.md", "docs/*.json", "docs/media/*", "scripts/*.py", "mkdocs.yml", "README.en.md", "CONTRIBUTING.md", "CHANGELOG.md", "LICENSES/*.txt", "NOTICE"]
+sdist.include = ["cpp/*.cpp", "include/**/*.hpp", "cmake/*.in", "tests/*.py", "tests/*.cpp", "examples/*.py", "examples/*.urdf", "examples/assets/*", "docs/*.md", "docs/*.json", "docs/media/*", "docs/assets/brand/*.svg", "scripts/*.py", "mkdocs.yml", "README*.md", "CONTRIBUTING.md", "CHANGELOG.md", "LICENSES/*.txt", "NOTICE"]
 sdist.exclude = ["build/**", "dist/**", "site/**", "outputs/**", ".venv/**", ".pytest_cache/**", "**/__pycache__/**"]
 
 [tool.pytest.ini_options]
