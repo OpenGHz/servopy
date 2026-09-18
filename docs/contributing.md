@@ -25,6 +25,8 @@ CMAKE_BUILD_PARALLEL_LEVEL=2 python -m pip install -e '.[test,docs,ruckig]'
 | `src/servo_py/runtime.py` / `recording.py` | 周期/设备与记录工具 |
 | `tests/` / `examples/` | 行为验证与可运行示例 |
 | `docs/` / `scripts/check_docs.py` | 文档及一致性检查 |
+| `.github/workflows/release.yml` / `scripts/check_release.py` | manylinux 构建、产物检查和 Trusted Publishing |
+| `scripts/smoke_wheel.py` | 在临时目录验证已安装示例、模型及命令行入口 |
 
 ## 选择相关验证
 
@@ -34,7 +36,7 @@ CMAKE_BUILD_PARALLEL_LEVEL=2 python -m pip install -e '.[test,docs,ruckig]'
 | Panda 控制 | `python -m pytest -q tests/test_mujoco_panda.py` |
 | 可选 IK/平滑/设备 | 对应 tests 模块，并安装所需 extras |
 | 教程、导航、参数说明 | 以下文档验证流程 |
-| 发布/打包元数据 | 构建 wheel/sdist，确认源文件与许可证包含情况 |
+| 发布/打包元数据 | 构建 wheel/sdist，执行 `twine check --strict`、安装后的 `scripts/smoke_wheel.py`；完整流程见[PyPI 发布](publishing.md) |
 
 测试应检查有意义的行为、数值基准或失败路径；避免只重复实现细节。历史性能或仿真结果不要直接改写成新结果，补充新的条件和记录。
 

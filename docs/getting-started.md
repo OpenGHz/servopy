@@ -34,7 +34,7 @@ python -m servo_py.examples.track_pose
 
 C++17 中的 17 指语言标准年份，GCC 13 等数字指编译器自身的版本。C++20/C++23 满足项目声明的标准下限；具体工具链和依赖组合仍需验证。
 
-已验证环境包括 Linux x86_64、Python 3.12、GCC 13 和 Eigen 3.4，详细版本及覆盖范围见[验证记录](validation.md)。这些是用于复现实验的环境记录，不是额外的版本限制；其他 Python、平台与依赖组合尚未逐一验证。
+已验证的源码构建环境包括 Linux x86_64、Python 3.12、GCC 13 和 Eigen 3.4；二进制发行另通过 CPython 3.10–3.14 / x86_64、ARM64 的逐 wheel 测试及 Ubuntu 安装检查，详细版本及覆盖范围见[验证记录](validation.md#linux-distribution-preparation)。这些是用于复现实验的环境记录，不是额外的版本限制；超出已列矩阵的 Python、平台与依赖组合尚未逐一验证。
 
 默认的 pip 隔离构建会准备 scikit-build-core、pybind11 和 Eigen 头文件依赖，并按需获取符合要求的 CMake。本机仍需提供 C++ 编译器和系统开发工具。仅链接原生内核时无需 Python，见[原生 C++ 接入](cpp.md)。
 

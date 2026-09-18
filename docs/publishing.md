@@ -21,6 +21,8 @@ Ubuntu 20.04 的 glibc 满足二进制基线，但默认 Python 3.8 不满足项
 
 [Python distributions 工作流](https://github.com/OpenGHz/servopy/actions/workflows/release.yml) 在 pull request、main 推送、手动运行和 GitHub Release 发布时执行：
 
+首次完整[验证运行](https://github.com/OpenGHz/servopy/actions/runs/35324779011)已通过，生成 10 个 wheel 和 1 个 sdist；各 Ubuntu 环境的测试数量及条件见[验证记录](validation.md#linux-distribution-preparation)。这次 main 构建没有向 TestPyPI 或 PyPI 上传。
+
 1. 检查 pyproject、CMake 和 C++ 绑定中的版本一致，构建 sdist 并检查 PyPI 元数据。
 2. 在原生 x86_64 / ARM64 runner 的 manylinux_2_28 容器内，从该 sdist 构建所有 wheel，并由 auditwheel 检查、修复依赖。
 3. 在各 Python 版本安装生成的 wheel，运行基础测试；x86_64 还运行 Ruckig 回归测试。

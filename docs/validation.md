@@ -236,3 +236,53 @@ was rendered again through EGL: 18 seconds, 1,800 control steps, 960 × 640 at
 30 fps, ending in HOLD. The refreshed GIF contains 216 frames at 640 × 427.
 Tracking metrics match the previous recording within 1e-12; the control
 implementation was not changed by this visual update.
+
+## Linux distribution preparation
+
+Date: 2026-09-18. The Python distribution remains `servo-py` 0.3.0 and the
+import name remains `servo_py`. Packaging now includes example modules, URDFs,
+the pinned Panda archive, its manifest and licenses, plus a `servo-py-panda`
+console entry point. Ruckig is pinned to 0.19.4 for this release preparation.
+
+Local validation on Linux x86_64 / CPython 3.12:
+
+- `python -m build` built the wheel from the generated sdist using GCC 13.3.0,
+  scikit-build-core 1.0.3, pybind11 3.1.0 and cmeel-eigen 3.4.1.
+- `twine check --strict` passed for both archives. The wheel contains the
+  expected model resources and third-party license files.
+- All **178 Python tests passed** against the installed wheel with NumPy 2.5.3,
+  MuJoCo 3.13.0, Pinocchio 4.1.0 and Ruckig 0.19.4.
+- `scripts/smoke_wheel.py --mujoco` checked version agreement, bundled model
+  checksums and the installed entry point. From a temporary directory it ran
+  the installed ideal-feedback example and default 18-second headless Panda
+  demo, with final position errors below 0.1 mm and 1 mm respectively.
+- All nine marked documentation examples and the strict MkDocs build passed.
+
+The local wheel is a `linux_x86_64` development artifact. Portable release
+wheels are built separately in manylinux_2_28 containers by the
+[distribution workflow](https://github.com/OpenGHz/servopy/actions/workflows/release.yml).
+
+The first complete [GitHub Actions distribution run](https://github.com/OpenGHz/servopy/actions/runs/35324779011)
+passed on commit `4e28fefe84a28853d2a10281b4ee73ade028159c`:
+
+| Environment | Installed-wheel result |
+|---|---|
+| manylinux_2_28 x86_64, each CPython 3.10–3.14 | 157 tests passed per wheel with Ruckig; 2 optional modules skipped; packaged example smoke check passed |
+| manylinux_2_28 ARM64, each CPython 3.10–3.14 | 148 tests passed per wheel; 4 optional skips; packaged example smoke check passed |
+| Ubuntu 22.04 x86_64 / Python 3.10 / NumPy 2.2.6 | 178 tests passed with MuJoCo 3.13.0, Pinocchio 4.1.0 and Ruckig 0.19.4 |
+| Ubuntu 24.04 x86_64 / Python 3.12 / NumPy 2.5.3 | 178 tests passed with the same optional backend versions |
+| Ubuntu 24.04 ARM64 / Python 3.12 / NumPy 2.5.3 | 166 tests passed with MuJoCo and Pinocchio; 5 Ruckig-related skips |
+
+All three Ubuntu jobs installed the project and runtime dependencies using
+`--only-binary=:all:`, passed `pip check`, and ran the installed headless Panda
+entry point outside the checkout. Auditwheel produced x86_64 tags for
+manylinux_2_27 / manylinux_2_28 and ARM64 tags for manylinux_2_26 /
+manylinux_2_28. The advertised baseline remains glibc 2.28, including the
+runtime dependency requirements.
+
+The final gate checked all 10 wheels and the sdist, including versions,
+platform tags, metadata, extension modules, models and license files. The
+run's `publish-distributions` artifact contains the validated files. Its
+TestPyPI and PyPI jobs were skipped because this was a main-branch build;
+this record does not claim that the package has been uploaded to either index.
+Account setup and publication steps are in [the release guide](publishing.md).

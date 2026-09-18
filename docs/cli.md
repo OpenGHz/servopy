@@ -1,10 +1,12 @@
 # 命令行参考
 
-所有脚本从仓库根目录运行，支持 `--help`。以下默认值对应 0.3.0；参数组合示例见相应教程。
+以下源码脚本从仓库根目录运行，支持 `--help`。安装 wheel 后也可从任意目录用 `python -m servo_py.examples.<模块名>` 运行，例如 `python -m servo_py.examples.track_pose`；Panda 另提供 `servo-py-panda` 命令。以下默认值对应 0.3.0；参数组合示例见相应教程。
 
 ## Panda 仿真
 
 `python examples/mujoco_panda.py [options]`，需安装 `.[mujoco]`。
+
+发行包对应 `python -m pip install 'servo-py[mujoco]'` 和 `servo-py-panda [options]`。所有参数一致，URDF 和 Panda 资产随包提供。
 
 | 参数 | 默认值 | 说明 |
 |---|---|---|
