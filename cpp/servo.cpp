@@ -115,14 +115,26 @@ void Config::validate(int n) const {
       throw std::invalid_argument("task_axes must be unique values in [0, 5]");
   if (!task_weights.allFinite() || (task_weights.array() <= 0).any())
     throw std::invalid_argument("task weights must be finite and positive");
+  if (!std::isfinite(nullspace_gain) || nullspace_gain < 0 ||
+      !std::isfinite(joint_centering_gain) || joint_centering_gain < 0 ||
+      (nullspace_reference.size() != 0 && nullspace_reference.size() != n) ||
+      !nullspace_reference.allFinite() || (nullspace_gain > 0 && nullspace_reference.size() != n))
+    throw std::invalid_argument("invalid nullspace gains or posture target");
 }
 
-ServoCore::ServoCore(std::shared_ptr<Kinematics> model, Limits limits, Config config)
-    : model_(std::move(model)), limits_(std::move(limits)), config_(std::move(config)) {
+ServoCore::ServoCore(std::shared_ptr<Kinematics> model, Limits limits, Config config,
+    std::shared_ptr<DifferentialIK> differential_ik, std::shared_ptr<MotionGenerator> motion_generator)
+    : model_(std::move(model)), limits_(std::move(limits)), config_(std::move(config)),
+      differential_ik_(differential_ik ? std::move(differential_ik) : std::make_shared<DampedLeastSquares>()),
+      motion_generator_(std::move(motion_generator)) {
   if (!model_) throw std::invalid_argument("model must not be null");
   n_ = model_->dof();
   limits_.validate(n_);
   config_.validate(n_);
+  if (config_.nullspace_reference.size() &&
+      ((config_.nullspace_reference.array() < limits_.lower.array() + limits_.margin.array()).any() ||
+       (config_.nullspace_reference.array() > limits_.upper.array() - limits_.margin.array()).any()))
+    throw std::invalid_argument("nullspace posture must respect position limits and margins");
   const auto names = model_->joint_names();
   if (static_cast<int>(names.size()) != n_ || std::set<std::string>(names.begin(), names.end()).size() != names.size())
     throw std::invalid_argument("backend joint names must match its dimension and be unique");
@@ -138,6 +150,9 @@ void ServoCore::reset(const State& state, std::int64_t now_ns) {
       (state.dq.cwiseAbs().array() > limits_.velocity.array() + eps).any())
     throw std::invalid_argument("reset requires a fresh, finite state within physical limits");
   reference_ = Reference{state.q, state.dq, Vector::Zero(n_), now_ns};
+  segment_start_.reset();
+  fault_latched_ = true;  // A failing backend reset must not permit continued motion.
+  if (motion_generator_) motion_generator_->reset();
   last_now_.reset();
   previous_type_.reset();
   fault_latched_ = false;
@@ -146,6 +161,7 @@ void ServoCore::reset(const State& state, std::int64_t now_ns) {
 Result ServoCore::reject(Result result, std::uint64_t flags, const std::string& message) {
   result.action = Action::REJECT;
   result.reference.reset();
+  segment_start_.reset();
   result.flags |= flags;
   result.message = message;
   fault_latched_ = true;
@@ -269,7 +285,9 @@ Result ServoCore::step(const State& state, const Command& command, double dt,
           linear = config_.position_gain * dp;
           angular = config_.orientation_gain * dr;
           if (std::sqrt(dp2) <= config_.position_tolerance && std::sqrt(dr2) <= config_.orientation_tolerance) {
-            braking = true; result.flags |= GOAL_REACHED;
+            braking = config_.nullspace_gain == 0 && config_.joint_centering_gain == 0;
+            linear.setZero(); angular.setZero();
+            result.flags |= GOAL_REACHED;
           }
         }
       }
@@ -297,8 +315,40 @@ Result ServoCore::step(const State& state, const Command& command, double dt,
         const double damping = config_.min_damping + (config_.max_damping - config_.min_damping) * ratio * ratio;
         result.diagnostics.sigma_min = sigma;
         result.diagnostics.damping = damping;
-        const Vector inverse = singular.array() / (singular.array().square() + damping * damping);
-        desired = svd.matrixV() * inverse.asDiagonal() * svd.matrixU().transpose() * task;
+        Vector preference = Vector::Zero(n_);
+        if (config_.nullspace_gain > 0) {
+          preference = config_.nullspace_gain * model_->difference(config_.nullspace_reference, state.q);
+          if (preference.size() != n_ || !preference.allFinite())
+            throw std::runtime_error("invalid nullspace posture difference");
+        }
+        for (int i = 0; i < n_; ++i) {
+          const double lo = limits_.lower[i] + limits_.margin[i];
+          const double hi = limits_.upper[i] - limits_.margin[i];
+          if (std::isfinite(lo) && std::isfinite(hi) && hi > lo)
+            preference[i] += config_.joint_centering_gain * ((lo + hi) - 2 * state.q[i]) / (hi - lo);
+        }
+        // An undamped orthogonal projector keeps secondary motion out of the
+        // active task. Damping the projector would leak posture into the TCP.
+        for (int i = 0; i < singular.size(); ++i)
+          if (singular[i] > std::max(1e-12, singular[0] * 1e-10))
+            preference -= svd.matrixV().col(i) * svd.matrixV().col(i).dot(preference);
+        result.diagnostics.nullspace_speed = preference.norm();
+        DifferentialIKRequest request;
+        request.jacobian = j; request.task = task; request.q = state.q;
+        request.preferred_velocity = preference; request.damping = damping;
+        request.lower.resize(n_); request.upper.resize(n_);
+        for (int i = 0; i < n_; ++i)
+          if (!feasible_velocity_interval(reference_->q[i], reference_->dq[i], i, limits_, dt,
+                                          request.lower[i], request.upper[i]))
+            return reject(result, INFEASIBLE | POSITION_LIMIT, "differential IK bounds are infeasible");
+        try {
+          desired = differential_ik_->solve(request);
+          if (desired.size() != n_ || !desired.allFinite())
+            throw std::runtime_error("solver must return a finite joint velocity vector");
+        } catch (const std::exception& error) {
+          return reject(result, SOLVER_ERROR, std::string("differential IK failed: ") + error.what());
+        }
+        result.diagnostics.task_residual = (j * desired - task).norm();
         if (task.norm() > eps && sigma < config_.singularity_soft) {
           bool escaping = false;
           if (desired.norm() > eps) {
@@ -333,33 +383,53 @@ Result ServoCore::step(const State& state, const Command& command, double dt,
     if (desired.cwiseAbs().maxCoeff() <= eps) braking = true;
 
     Reference next;
-    next.dq.resize(n_);
-    for (int i = 0; i < n_; ++i) {
-      const double v0 = reference_->dq[i];
-      const double acceleration_limited = std::clamp(desired[i], v0 - limits_.acceleration[i] * dt,
-                                                   v0 + limits_.acceleration[i] * dt);
-      if (std::abs(acceleration_limited - desired[i]) > eps) result.flags |= ACCELERATION_LIMIT;
-      double lo, hi;
-      if (!feasible_velocity_interval(reference_->q[i], v0, i, limits_, dt, lo, hi))
-        return reject(result, INFEASIBLE | POSITION_LIMIT, "no acceleration-bounded reference can respect joint limits");
-      next.dq[i] = std::clamp(desired[i], lo, hi);
-      if (std::abs(next.dq[i]) < 1e-12 && lo <= 0 && hi >= 0) next.dq[i] = 0.0;
-      if (std::abs(next.dq[i] - acceleration_limited) > eps) result.flags |= POSITION_LIMIT;
+    if (motion_generator_) {
+      std::optional<Vector> position;
+      if (!braking && command.type == CommandType::JOINT_POSITION && result.diagnostics.collision_scale == 1) {
+        // Keep continuous joints on their shortest, unwrapped local branch.
+        position = model_->integrate(reference_->q, model_->difference(command.joint_position, reference_->q));
+      }
+      try {
+        const auto generated = motion_generator_->generate(*reference_, desired, position, dt, limits_);
+        next = generated.reference;
+        result.flags |= generated.flags;
+        braking = braking || generated.braking;
+      } catch (const std::exception& error) {
+        return reject(result, SMOOTHING_ERROR | INFEASIBLE, std::string("motion generation failed: ") + error.what());
+      }
+    } else {
+      next.dq.resize(n_);
+      for (int i = 0; i < n_; ++i) {
+        const double v0 = reference_->dq[i];
+        const double acceleration_limited = std::clamp(desired[i], v0 - limits_.acceleration[i] * dt,
+                                                     v0 + limits_.acceleration[i] * dt);
+        if (std::abs(acceleration_limited - desired[i]) > eps) result.flags |= ACCELERATION_LIMIT;
+        double lo, hi;
+        if (!feasible_velocity_interval(reference_->q[i], v0, i, limits_, dt, lo, hi))
+          return reject(result, INFEASIBLE | POSITION_LIMIT, "no acceleration-bounded reference can respect joint limits");
+        next.dq[i] = std::clamp(desired[i], lo, hi);
+        if (std::abs(next.dq[i]) < 1e-12 && lo <= 0 && hi >= 0) next.dq[i] = 0.0;
+        if (std::abs(next.dq[i] - acceleration_limited) > eps) result.flags |= POSITION_LIMIT;
+      }
+      const Vector delta = 0.5 * (reference_->dq + next.dq) * dt;
+      next.q = model_->integrate(reference_->q, delta);
+      next.ddq = (next.dq - reference_->dq) / dt;
     }
-    const Vector delta = 0.5 * (reference_->dq + next.dq) * dt;
-    next.q = model_->integrate(reference_->q, delta);
-    next.ddq = (next.dq - reference_->dq) / dt;
     next.stamp_ns = now_ns + std::llround(dt * 1e9);
-    if (next.q.size() != n_ || !next.q.allFinite() || !next.dq.allFinite() || !next.ddq.allFinite() ||
+    if (next.q.size() != n_ || next.dq.size() != n_ || next.ddq.size() != n_ ||
+        !next.q.allFinite() || !next.dq.allFinite() || !next.ddq.allFinite() ||
         (next.q.array() < limits_.lower.array() - eps).any() ||
         (next.q.array() > limits_.upper.array() + eps).any() ||
         (next.dq.cwiseAbs().array() > limits_.velocity.array() * (1 + 1e-10) + 1e-12).any() ||
         (next.ddq.cwiseAbs().array() > limits_.acceleration.array() * (1 + 1e-10) + 1e-12).any())
       return reject(result, INFEASIBLE, "final reference failed validation");
-    const bool stationary = reference_->dq.cwiseAbs().maxCoeff() <= eps && next.dq.cwiseAbs().maxCoeff() <= eps;
+    const bool stationary = reference_->dq.cwiseAbs().maxCoeff() <= eps && next.dq.cwiseAbs().maxCoeff() <= eps &&
+      next.ddq.cwiseAbs().maxCoeff() <= eps;
     result.action = stationary ? Action::HOLD : (braking ? Action::BRAKE : Action::TRACK);
     result.reference = next;
     result.message = "reference generated";
+    segment_start_ = reference_;
+    segment_start_->stamp_ns = now_ns;
     reference_ = std::move(next);
     last_now_ = now_ns;
     previous_dt_ = dt;
@@ -368,5 +438,22 @@ Result ServoCore::step(const State& state, const Command& command, double dt,
   } catch (const std::exception& error) {
     return reject(result, MODEL_ERROR, std::string("kinematic backend failed: ") + error.what());
   }
+}
+
+Reference ServoCore::sample_reference(double elapsed) {
+  std::unique_lock<std::mutex> lock(mutex_, std::try_to_lock);
+  if (!lock.owns_lock()) throw std::runtime_error("ServoCore is already in use");
+  if (!segment_start_ || !reference_ || !std::isfinite(elapsed) || elapsed < 0 || elapsed > previous_dt_)
+    throw std::invalid_argument("sample time must lie in the last successful reference interval");
+  Reference sample;
+  if (motion_generator_) sample = motion_generator_->sample(elapsed);
+  else {
+    sample.q = model_->integrate(segment_start_->q,
+      elapsed * segment_start_->dq + 0.5 * elapsed * elapsed * reference_->ddq);
+    sample.dq = segment_start_->dq + elapsed * reference_->ddq;
+    sample.ddq = reference_->ddq;
+  }
+  sample.stamp_ns = segment_start_->stamp_ns + std::llround(elapsed * 1e9);
+  return sample;
 }
 }  // namespace servo_py

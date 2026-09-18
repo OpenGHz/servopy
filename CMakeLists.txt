@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(servo_py VERSION 0.2.0 LANGUAGES CXX)
+project(servo_py VERSION 0.3.0 LANGUAGES CXX)
 
 option(SERVO_PY_BUILD_PYTHON "Build the Python extension" ON)
 option(SERVO_PY_BUILD_TESTS "Build standalone C++ smoke test" OFF)
@@ -16,7 +16,7 @@ if(SERVO_PY_BUILD_PYTHON)
 endif()
 find_package(Eigen3 3.4 REQUIRED NO_MODULE)
 
-add_library(servo_core STATIC cpp/kinematics.cpp cpp/servo.cpp)
+add_library(servo_core STATIC cpp/kinematics.cpp cpp/servo.cpp cpp/solvers.cpp)
 add_library(servo_py::core ALIAS servo_core)
 set_target_properties(servo_core PROPERTIES POSITION_INDEPENDENT_CODE ON EXPORT_NAME core)
 target_compile_features(servo_core PUBLIC cxx_std_17)

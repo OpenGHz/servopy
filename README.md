@@ -1,7 +1,7 @@
 # servo-py
 
 独立于 ROS/MoveIt 的在线 Servo 包，使用 C++17/Eigen 计算，提供 Python API。
-当前版本：`0.2.0`。基础 Python 运行依赖只有 NumPy。
+当前版本：`0.3.0`。基础 Python 运行依赖只有 NumPy。
 
 已实现 JointJog、JointPosition、Twist、Pose、阻尼微分 IK、奇异性减速/离开策略、关节速度与加速度约束、考虑采样制动距离的位置限制、超时停止和故障锁存。附带原生串联运动学、URDF 加载、可选 Pinocchio 后端与外部位置 IK 适配器。
 
@@ -19,10 +19,10 @@ python examples/track_pose.py
 源码构建需要 C++17 编译器；pip 会在隔离构建环境中安装构建依赖。可用的 Python wheel 可以直接安装，无需编译器：
 
 ```bash
-python -m pip install ./servo_py-0.2.0-cp312-cp312-linux_x86_64.whl
+python -m pip install ./servo_py-0.3.0-cp312-cp312-linux_x86_64.whl
 ```
 
-本地构建的 wheel 仅对应 CPython 3.12、Linux x86_64，在 Ubuntu 24.04/glibc 2.39 环境构建，未经 manylinux 修复；其他平台或较老系统请从源码构建。项目声明支持 Python 3.10+，当前实际验证环境为 Python 3.12。`0.2.0` 增加了 C++ 指令与绑定，更新源码后需重新安装，旧版 wheel 不提供新接口：
+本地构建的 wheel 仅对应 CPython 3.12、Linux x86_64，在 Ubuntu 24.04/glibc 2.39 环境构建，未经 manylinux 修复；其他平台或较老系统请从源码构建。项目声明支持 Python 3.10+，当前实际验证环境为 Python 3.12。`0.3.0` 增加了 C++ 求解器、轨迹生成接口与绑定，更新源码后需重新安装，旧版 wheel 不提供新接口：
 
 ```bash
 CMAKE_BUILD_PARALLEL_LEVEL=2 python -m pip install --upgrade '.[mujoco]'
@@ -59,6 +59,17 @@ MUJOCO_GL=egl python examples/mujoco_panda.py --headless \
 ```
 
 MuJoCo 是可选依赖；基础包仍仅依赖 NumPy。三个模式均未启用 Servo 的外部碰撞监控；两种关节位控模式不执行内置笛卡尔限速或奇异性减速。macOS 的 viewer 请使用 `mjpython examples/mujoco_panda.py`，同样支持 `--control-mode`。
+
+**可选平滑与冗余控制**
+
+```bash
+CMAKE_BUILD_PARALLEL_LEVEL=2 python -m pip install --upgrade '.[mujoco,ruckig]'
+python examples/mujoco_panda.py --control-mode joint-position --smoothing ruckig
+python examples/mujoco_panda.py --control-mode ik-position --smoothing ruckig
+python examples/mujoco_panda.py --differential-ik qp --nullspace-gain 0.1 --smoothing ruckig
+```
+
+新增 `--target-stdin` 实时目标、`--targets` 定时目标回放及 `--log` 控制记录。QP 和零空间参数用于 Pose/Twist 微分 IK；两种位控模式可以单独启用 Ruckig。用法与边界见 [高级控制接口](docs/advanced-control.md)。
 
 **最小示例**
 
@@ -143,7 +154,7 @@ model = PinocchioModel.from_urdf(
 
 `PositionIKAdapter(servo, solve_ik)` 可接入已有的 `solve_ik(target_pose, q_seed)`，输出经过限位、连续性和任务位姿残差校验的 `JointPositionCommand`；无解、异常或无效解返回 `StopCommand`。它保留原始目标时间戳，并使用当前 Servo 的有效限位。完整循环、时间戳和失败处理见 [Python IK 接入教程](docs/python-ik.md)。
 
-直接传给 `Servo.step()` 的 `PoseCommand` / `TwistCommand` 仍使用内置微分 IK。外部位置 IK 通过适配器走关节位置分支，不自动获得内置笛卡尔限速或奇异性减速；已有微分 IK 仍可输出 `JointJogCommand`。
+直接传给 `Servo.step()` 的 `PoseCommand` / `TwistCommand` 默认使用 DLS 微分 IK，也可以通过 `differential_ik=` 替换求解器。外部位置 IK 通过适配器走关节位置分支，不自动获得内置笛卡尔限速或奇异性减速；已有微分 IK 仍可输出 `JointJogCommand`。
 
 **构建和测试**
 
@@ -171,6 +182,6 @@ ctest --test-dir build-native --output-on-failure
 如果 Eigen 不在系统搜索路径，传入 `-DCMAKE_PREFIX_PATH=/path/to/eigen/prefix`。
 安装 C++ 库后，消费者可以通过 `find_package(servo_py CONFIG REQUIRED)` 和 `servo_py::core` 链接。
 
-数值和时序契约见 [docs/design.md](docs/design.md)，验证结果见 [docs/validation.md](docs/validation.md)。当前不包含设备驱动、周期线程、几何碰撞检查器、Ruckig/jerk 约束或 QP 求解器。该实现改变了 MoveIt Servo 的部分行为，未做逐步数值等价验证。
+数值和时序契约见 [docs/design.md](docs/design.md)，验证结果见 [docs/validation.md](docs/validation.md)。可选 Ruckig、QP/零空间控制、周期调度、设备适配协议及记录对照工具见 [高级控制接口](docs/advanced-control.md)。几何碰撞检查、位控重力补偿和跨平台构建仍未实现。该实现改变了 MoveIt Servo 的部分行为，未做逐步数值等价验证。
 
 已完成与待实现功能、建议顺序和验收条件见 [功能清单](docs/roadmap.md)。

@@ -42,7 +42,7 @@ can make previously feasible sampled braking infeasible, in which case the
 core rejects. The maximum configurable interval is one second; the default
 `max_dt` is 50 ms. Clock repeats, backwards time and timestamp overflow fault.
 
-Each accepted interval has constant acceleration. With previous endpoint
+With the default motion backend, each accepted interval has constant acceleration. With previous endpoint
 velocity v0, new endpoint velocity v1 and period h:
 
     a = (v1 - v0) / h
@@ -71,7 +71,7 @@ searches find the feasible endpoint interval; empty intersections are faults.
 When initialized within a soft position margin, motion may retreat but may
 not progress further outward. A state outside physical position limits is
 rejected. Constraints govern the generated reference, not unmodeled actuator
-dynamics or communication delays. No jerk bound is imposed.
+dynamics or communication delays. The default backend imposes no jerk bound; the optional Ruckig backend has a different piecewise-jerk interpolation contract described below.
 
 Twist commands denote TCP linear/angular velocity, expressed in base or TCP
 axes. Changing expression axes rotates both three-vectors; it does not change
@@ -79,7 +79,9 @@ their physical reference point. Arbitrary external frames and other reference
 points are rejected. Pose targets are base-expressed rigid 4x4 transforms.
 Their feedback law uses position difference and the shortest SO(3) rotation
 logarithm, separate gains, active-axis selection and Cartesian speed caps.
-Reaching active-task tolerances requests braking before holding.
+Reaching active-task tolerances requests braking before holding by default.
+When nullspace gains are enabled, the primary task stops requesting motion
+inside tolerance but the secondary posture may continue (GOAL_REACHED + TRACK).
 
 JointPosition commands contain a finite target for every controlled joint,
 within effective limits including margins. Named Python commands must be a
@@ -91,7 +93,7 @@ GOAL_REACHED additionally requires measured position error inside tolerance.
 Neither that flag nor HOLD alone proves the physical device has stopped.
 Diagnostics expose target-to-measured joint_position_error separately from
 reference-to-measured tracking_error. No Cartesian speed cap, Jacobian
-singularity policy or jerk limit is applied in this joint branch.
+singularity policy is applied in this joint branch. Optional Ruckig smoothing applies joint jerk bounds here as in the other branches.
 
 PositionIKAdapter is an explicit Python command preparation layer. It takes a
 PoseCommand and caller-selected seed, validates solver results against the
@@ -137,3 +139,37 @@ The core intentionally differs from MoveIt Servo: explicit timing and state,
 no IK-plugin dependency to identify base/TCP, DLS, sampled acceleration-limited
 references, local singularity escape and latched faults. Upstream review
 baseline is recorded in NOTICE. It is not a drop-in numerical replacement.
+
+## Optional solvers, smoothing and runtime (0.3.0)
+
+ServoCore accepts DifferentialIK and MotionGenerator implementations at construction.
+The default DLS behavior remains. BoxQPSolver minimizes weighted task error plus
+positive damping regularization subject to feasible per-joint velocity bounds.
+An exact SVD nullspace projector supplies posture and finite-limit centering
+preferences. Constraints and subsequent singularity/scaling operations can change
+the task direction; this is not a general inequality or strict hierarchy solver.
+SOLVER_ERROR latches on exceptions, dimension errors or invalid solver output.
+
+RuckigSmoothing is an optional Python MotionGenerator backed by Ruckig 0.12.2.
+JointPosition uses a position target, other branches use target velocities.
+It checks continuous position/velocity extrema and acceleration/jerk phases,
+and retains a feasible continuation to zero velocity and acceleration for each
+accepted endpoint. New targets outside this envelope fall back to the retained
+stop. Infeasible initial stops reject with SMOOTHING_ERROR. There is no post-hoc
+filter applied to a separately propagated core reference. Each generator belongs
+to one Servo. Custom generators are trusted backends responsible for their whole
+trajectory contract; the core additionally checks endpoint dimensions and limits.
+
+Use sample_reference(t) within the last accepted [0, dt] interval to execute
+piecewise jerk trajectories. Endpoint ddq is not constant throughout a Ruckig
+interval. Reset discards history and assumes zero initial reference acceleration;
+recovery should occur after the device has stopped. Neither reset nor REJECT
+allows sampling the previous interval. Position-only hardware must implement
+compatible interpolation to reproduce reference constraints.
+
+The separate Python ServoRunner uses an absolute monotonic schedule, a size-one
+command mailbox and an explicit Device stop/recover protocol. It rejects late
+work instead of replaying missed cycles, routes exceptions to downstream stop,
+and requires explicit recovery. This best-effort loop cannot preempt blocked
+callbacks and requires device-side watchdogs and bounded communication. See
+advanced-control.md for the API, JSONL replay and offline MoveIt export comparison.

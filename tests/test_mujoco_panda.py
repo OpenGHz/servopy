@@ -171,3 +171,39 @@ def test_rejected_position_control_does_not_command_zero_angles(monkeypatch):
         simulation.step()
     assert simulation.data.time == now
     np.testing.assert_array_equal(simulation.data.ctrl[simulation.arm_actuators], measured)
+
+
+@pytest.mark.parametrize("mode", ["torque", "joint-position", "ik-position"])
+def test_panda_ruckig_and_qp_physics(mode):
+    pytest.importorskip("ruckig")
+    simulation = demo.PandaSimulation(control_mode=mode, smoothing="ruckig",
+        differential_ik="qp" if mode == "torque" else "dls",
+        nullspace_gain=.1 if mode == "torque" else 0.)
+    acceleration = np.zeros(7)
+    for _ in range(1800):
+        result = simulation.step()
+        ref = result.reference
+        assert np.max(np.abs(ref.ddq - acceleration)) <= 30 * .01 + 1e-8
+        acceleration = ref.ddq
+        assert np.all(ref.q >= simulation.backend.limits.lower + .02 - 1e-9)
+        assert np.all(ref.q <= simulation.backend.limits.upper - .02 + 1e-9)
+    assert result.action == Action.HOLD
+    assert simulation.summary()["position_rmse_m"] < .08
+    assert np.max(np.linalg.norm(np.asarray(simulation.trace) - simulation.home_pose[:3, 3], axis=1)) > .05
+
+
+def test_external_joint_target_retains_timeout_and_records(tmp_path):
+    from servo_py import JointPositionCommand, JsonlRecorder, SafetyFlag, read_records
+    log = tmp_path / "panda.jsonl"
+    with JsonlRecorder(log) as recorder:
+        simulation = demo.PandaSimulation(control_mode="joint-position", external_targets=True, recorder=recorder)
+        target = simulation.home_q + [.04, 0, 0, 0, 0, 0, 0]
+        simulation.targets.publish(JointPositionCommand(target, 0))
+        for _ in range(60):
+            result = simulation.step()
+    assert result.flags & SafetyFlag.STALE_COMMAND
+    assert result.action == Action.HOLD
+    rows = list(read_records(log))
+    assert len(rows) == 60
+    assert all(row["command"]["stamp_ns"] == 0 for row in rows)
+    assert np.max(abs(simulation.q_reference - simulation.home_q)) > .001

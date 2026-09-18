@@ -44,6 +44,10 @@ enum Flag : std::uint64_t {
   GOAL_REACHED = 1ULL << 20,
   MODE_SWITCH = 1ULL << 21,
   MODEL_ERROR = 1ULL << 22,
+  JERK_LIMIT = 1ULL << 23,
+  SOLVER_ERROR = 1ULL << 24,
+  SMOOTHING_ERROR = 1ULL << 25,
+  SMOOTHING_FALLBACK = 1ULL << 26,
 };
 
 struct Limits {
@@ -117,6 +121,9 @@ struct Config {
   bool collision_required = false;
   std::vector<int> task_axes{0, 1, 2, 3, 4, 5};
   Vector6 task_weights = Vector6::Ones();
+  double nullspace_gain = 0.0;
+  double joint_centering_gain = 0.0;
+  Vector nullspace_reference;  // optional posture target in model order
   void validate(int n) const;
 };
 
@@ -148,6 +155,47 @@ struct Reference {
   std::int64_t stamp_ns = 0;
 };
 
+// All task rows/weights and bounds are prepared by ServoCore. A solver is a
+// trusted numerical backend; its output still passes the core safety checks.
+struct DifferentialIKRequest {
+  Matrix jacobian;
+  Vector task, q, lower, upper, preferred_velocity;
+  double damping = 0.0;
+};
+class DifferentialIK {
+ public:
+  virtual ~DifferentialIK() = default;
+  virtual Vector solve(const DifferentialIKRequest& request) = 0;
+};
+class DampedLeastSquares final : public DifferentialIK {
+ public:
+  Vector solve(const DifferentialIKRequest& request) override;
+};
+class BoxQPSolver final : public DifferentialIK {
+ public:
+  explicit BoxQPSolver(int max_iterations = 200, double tolerance = 1e-9);
+  Vector solve(const DifferentialIKRequest& request) override;
+ private:
+  int max_iterations_;
+  double tolerance_;
+};
+
+struct MotionOutput {
+  Reference reference;
+  std::uint64_t flags = NONE;
+  bool braking = false;
+};
+class MotionGenerator {
+ public:
+  virtual ~MotionGenerator() = default;
+  virtual void reset() = 0;
+  // Target position is supplied only for a valid, unrestricted JointPosition
+  // command. Other modes (and scaled/braking commands) use target velocity.
+  virtual MotionOutput generate(const Reference& start, const Vector& velocity,
+      const std::optional<Vector>& position, double dt, const Limits& limits) = 0;
+  virtual Reference sample(double elapsed) const = 0;
+};
+
 struct Diagnostics {
   double sigma_min = 0.0;
   double damping = 0.0;
@@ -158,6 +206,8 @@ struct Diagnostics {
   double position_error = 0.0;
   double orientation_error = 0.0;
   double joint_position_error = 0.0;  // target versus measured joints, max norm
+  double task_residual = 0.0;
+  double nullspace_speed = 0.0;
 };
 
 struct Result {
@@ -170,16 +220,22 @@ struct Result {
 
 class ServoCore {
  public:
-  ServoCore(std::shared_ptr<Kinematics> model, Limits limits, Config config = {});
+  ServoCore(std::shared_ptr<Kinematics> model, Limits limits, Config config = {},
+      std::shared_ptr<DifferentialIK> differential_ik = nullptr,
+      std::shared_ptr<MotionGenerator> motion_generator = nullptr);
   Result step(const State& state, const Command& command, double dt,
               std::int64_t now_ns,
               const std::optional<CollisionSample>& collision = std::nullopt);
   void reset(const State& state, std::int64_t now_ns);
+  Reference sample_reference(double elapsed);
  private:
   Result reject(Result result, std::uint64_t flags, const std::string& message);
   std::shared_ptr<Kinematics> model_;
   Limits limits_;
   Config config_;
+  std::shared_ptr<DifferentialIK> differential_ik_;
+  std::shared_ptr<MotionGenerator> motion_generator_;
+  std::optional<Reference> segment_start_;
   int n_;
   std::optional<Reference> reference_;
   std::optional<std::int64_t> last_now_;

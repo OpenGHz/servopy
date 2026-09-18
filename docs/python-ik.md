@@ -56,7 +56,7 @@ except Exception:
     raise
 ```
 
-`controller` 是应用自行实现的设备适配层；周期调度同样由调用方负责。`target_stamp_ns` 是上游目标的原始时间戳，与真实反馈和 `now_ns` 使用同一单调时钟。持续读取旧目标时不能刷新其时间戳。固定目标应由上层任务明确管理其持续有效、取消与更新。
+`controller` 是应用的设备适配层；`0.3.0` 也提供 `ServoRunner`、`Device` 协议和 `CallbackDevice`，见 [高级控制接口](advanced-control.md)。本教程仍展示手动步进。`target_stamp_ns` 是上游目标的原始时间戳，与真实反馈和 `now_ns` 使用同一单调时钟。持续读取旧目标时不能刷新其时间戳。固定目标应由上层任务明确管理其持续有效、取消与更新。
 
 `PositionIKResult` 提供 `success`、`command`、`message`、`position_error` 和 `orientation_error`。成功时 `command` 是完整的 `JointPositionCommand`；无解、异常或验证失败时为 `StopCommand`，且不会返回上次成功的解。两个误差字段是解的 FK 与目标在 `ServoConfig.task_axes` 上的残差，仅在完成残差计算时有数值，不是实际设备反馈误差。
 

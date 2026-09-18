@@ -28,7 +28,8 @@ except ImportError as exc:
 
 from servo_py import (
     Action, JointPositionCommand, JointLimits, JointState, Kinematics, PoseCommand, PositionIKAdapter,
-    SafetyFlag, Servo, ServoConfig, StopCommand,
+    SafetyFlag, Servo, ServoConfig, StopCommand, BoxQPSolver, RuckigSmoothing,
+    LatestCommand, JsonlRecorder, command_from_dict,
 )
 
 ASSETS = Path(__file__).resolve().parent / "assets"
@@ -214,13 +215,17 @@ class PandaPositionIK:
 
 
 class PandaSimulation:
-    def __init__(self, *, duration=18.0, width=960, height=640, control_mode="torque", ik_solver=None):
+    def __init__(self, *, duration=18.0, width=960, height=640, control_mode="torque", ik_solver=None,
+                 smoothing="none", max_jerk=30., differential_ik="dls", nullspace_gain=0.,
+                 joint_centering_gain=0., external_targets=False, recorder=None):
         if not np.isfinite(duration) or duration < 6:
             raise ValueError("duration must be at least 6 seconds")
         if control_mode not in CONTROL_MODES:
             raise ValueError(f"control_mode must be one of {CONTROL_MODES}")
         if ik_solver is not None and control_mode != "ik-position":
             raise ValueError("ik_solver is only used with ik-position")
+        if smoothing not in ("none", "ruckig") or differential_ik not in ("dls", "qp"):
+            raise ValueError("unknown smoothing or differential IK backend")
         self.control_mode = control_mode
         self.actuator_mode = "torque" if control_mode == "torque" else "position"
         self.duration = float(duration)
@@ -231,11 +236,18 @@ class PandaSimulation:
         self.arm_actuators = np.array([self.model.actuator(f"actuator{i}").id for i in range(1, 8)])
         self.data.ctrl[self.model.actuator("actuator8").id] = 255
         mujoco.mj_forward(self.model, self.data)
+        self.home_q = self.data.qpos[self.backend.q_ids].copy()
+        self.smoothing, self.differential_ik = smoothing, differential_ik
+        self.external_targets, self.recorder = external_targets, recorder
+        self.targets = LatestCommand()
+        self.last_input_error = None
         self.servo = Servo(self.backend, ServoConfig(
             position_gain=10.0, orientation_gain=10.0, max_linear_speed=0.25,
             joint_position_gain=10.0, joint_position_tolerance=1e-5,
-        ))
-        self.home_q = self.data.qpos[self.backend.q_ids].copy()
+            nullspace_gain=nullspace_gain, nullspace_reference=self.home_q,
+            joint_centering_gain=joint_centering_gain,
+        ), differential_ik=BoxQPSolver() if differential_ik == "qp" else None,
+            motion_generator=RuckigSmoothing(max_jerk) if smoothing == "ruckig" else None)
         self.home_pose = self.backend.fk(self.home_q)
         self.target = self.home_pose.copy()
         self.mocap_id = self.model.body_mocapid[self.model.body("target").id]
@@ -258,13 +270,16 @@ class PandaSimulation:
         self.trace = []
         self.actions = Counter()
         self.flags = SafetyFlag.NONE
-        self.planned_path = np.array([self.desired_pose(t)[:3, 3] for t in np.linspace(1, duration - 3, 181)])
+        self.planned_path = np.empty((0, 3)) if external_targets else np.array([
+            self.desired_pose(t)[:3, 3] for t in np.linspace(1, duration - 3, 181)])
 
     @property
     def time(self):
         return self.tick * CONTROL_DT
 
     def desired_pose(self, t):
+        if self.external_targets:
+            return self.target.copy()
         if self.control_mode == "joint-position":
             # FK is for visualization/metrics only; the control target is q.
             return self.backend.fk(target_joints(self.home_q, t, self.duration))
@@ -273,12 +288,36 @@ class PandaSimulation:
     def command(self, now_ns):
         if self.time >= self.duration - 1:
             return StopCommand()
+        if self.external_targets:
+            command = self.targets.read()
+            if isinstance(command, StopCommand):
+                return command
+            if isinstance(command, PoseCommand):
+                pose = np.asarray(command.pose, dtype=float)
+                if pose.shape == (4, 4) and np.all(np.isfinite(pose)):
+                    self.target = pose.copy()
+                if self.control_mode == "ik-position":
+                    return self._prepare_ik(command, now_ns)
+                if self.control_mode == "torque":
+                    return command
+            elif isinstance(command, JointPositionCommand) and self.control_mode != "ik-position":
+                # Native Servo performs full names/limits validation. Only
+                # valid targets are used to move the visualization marker.
+                native = self.servo._command(command, now_ns)
+                if native.valid and len(native.joint_position) == 7 and np.all(np.isfinite(native.joint_position)):
+                    self.target = self.backend.fk(native.joint_position)
+                return command
+            self.last_input_error = "target type does not match the selected control mode"
+            return StopCommand()
         if self.control_mode == "torque":
             return PoseCommand(self.target, now_ns)
         if self.control_mode == "joint-position":
             self.joint_target = checked_joint_target(self.backend, target_joints(self.home_q, self.time, self.duration))
             return JointPositionCommand(self.joint_target, now_ns)
-        prepared = self.ik_adapter.solve(PoseCommand(self.target, now_ns), self.q_reference, now_ns=now_ns)
+        return self._prepare_ik(PoseCommand(self.target, now_ns), now_ns)
+
+    def _prepare_ik(self, command, now_ns):
+        prepared = self.ik_adapter.solve(command, self.q_reference, now_ns=now_ns)
         if not prepared.success:
             self.joint_target = None
             self.ik_failures += 1
@@ -293,6 +332,8 @@ class PandaSimulation:
         state = JointState(self.data.qpos[self.backend.q_ids].copy(), self.data.qvel[self.backend.v_ids].copy(), now_ns)
         command = self.command(now_ns)
         self.result = self.servo.step(state, command, dt=CONTROL_DT, now_ns=now_ns)
+        if self.recorder is not None:
+            self.recorder.record(now_ns, CONTROL_DT, state, command, self.result)
         if self.result.action == Action.REJECT:
             # Zero is a torque-off command, but would be a dangerous angle
             # target for position actuators. Abort simulation without stepping.
@@ -303,12 +344,12 @@ class PandaSimulation:
         self.actions[self.result.action.name] += 1
         self.flags |= self.result.flags
         self.data.mocap_pos[self.mocap_id] = self.target[:3, 3]
-        # Interpolate the constant-acceleration interval defined by Servo.
+        # Sample the actual reference interval, including Ruckig jerk phases.
         # qpos/qvel are never overwritten after initialization: motors drive mj_step.
         for substep in range(round(CONTROL_DT / PHYSICS_DT)):
             elapsed = substep * PHYSICS_DT
-            q_des = self.q_reference + elapsed * self.dq_reference + 0.5 * elapsed**2 * reference.ddq
-            dq_des = self.dq_reference + elapsed * reference.ddq
+            sample = self.servo.sample_reference(elapsed)
+            q_des, dq_des = sample.q, sample.dq
             if self.actuator_mode == "position":
                 control = q_des  # Radians into the model's bounded position servos.
             else:
@@ -335,6 +376,8 @@ class PandaSimulation:
         return {
             "mujoco_version": mujoco.__version__, "physics_hz": 500, "servo_hz": 100,
             "control_mode": self.control_mode, "actuator_mode": self.actuator_mode,
+            "smoothing": self.smoothing, "differential_ik": self.differential_ik,
+            "external_targets": self.external_targets, "last_input_error": self.last_input_error,
             "actuator_command_units": "Nm" if self.actuator_mode == "torque" else "rad",
             "ik_failures": self.ik_failures, "last_ik_error": self.last_ik_error,
             "simulated_seconds": self.time, "steps": self.tick, "feedback": "MuJoCo qpos/qvel",
@@ -345,7 +388,8 @@ class PandaSimulation:
             "final_action": self.result.action.name if self.result else None,
             "actions": dict(self.actions), "flags": [flag.name for flag in SafetyFlag if flag & self.flags],
             "servo_collision_monitor": "disabled",
-            "trajectory": "joint-space loop (TCP path from FK)" if self.control_mode == "joint-position" else "figure eight, fixed TCP orientation",
+            "trajectory": "external targets" if self.external_targets else (
+                "joint-space loop (TCP path from FK)" if self.control_mode == "joint-position" else "figure eight, fixed TCP orientation"),
         }
 
 
@@ -423,6 +467,15 @@ def main(argv=None):
     parser.add_argument("--duration", type=float, default=18, help="Simulation seconds, minimum 6 (default: 18).")
     parser.add_argument("--record", type=Path, help="Write an MP4 from actual simulation frames.")
     parser.add_argument("--metrics", type=Path, help="Save the measured tracking summary as JSON.")
+    parser.add_argument("--smoothing", choices=("none", "ruckig"), default="none")
+    parser.add_argument("--max-jerk", type=float, default=30., help="rad/s^3 for the optional Ruckig backend.")
+    parser.add_argument("--differential-ik", choices=("dls", "qp"), default="dls")
+    parser.add_argument("--nullspace-gain", type=float, default=0., help="Posture gain towards Panda home joints.")
+    parser.add_argument("--joint-centering-gain", type=float, default=0.)
+    sources = parser.add_mutually_exclusive_group()
+    sources.add_argument("--target-stdin", action="store_true", help="Read live JSONL targets; pace headless physics in wall time.")
+    sources.add_argument("--targets", type=Path, help="Replay JSONL targets with simulation time in a time field (seconds).")
+    parser.add_argument("--log", type=Path, help="Record feedback, accepted commands and reference endpoints as JSONL.")
     parser.add_argument("--width", type=int, default=960)
     parser.add_argument("--height", type=int, default=640)
     parser.add_argument("--fps", type=int, default=30)
@@ -437,7 +490,25 @@ def main(argv=None):
         parser.error("--record expects an .mp4 filename")
     if not args.headless and sys.platform.startswith("linux") and not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
         parser.error("No display found. Run on your desktop for the viewer, or use --headless (MUJOCO_GL=egl when recording).")
-    simulation = PandaSimulation(duration=args.duration, width=args.width, height=args.height, control_mode=args.control_mode)
+    if args.control_mode != "torque" and (args.differential_ik != "dls" or args.nullspace_gain or args.joint_centering_gain):
+        parser.error("Differential IK and nullspace options apply to torque/Pose mode; ik-position uses the position IK adapter.")
+    scheduled = []
+    if args.targets:
+        previous = -1.
+        for number, line in enumerate(args.targets.read_text().splitlines(), 1):
+            try:
+                row = json.loads(line)
+                stamp = float(row.pop("time"))
+                if not np.isfinite(stamp) or stamp < 0 or stamp < previous:
+                    raise ValueError("time must be nonnegative and ordered")
+                scheduled.append((stamp, command_from_dict(row, stamp_ns=round(stamp * 1e9))))
+                previous = stamp
+            except (ValueError, KeyError, TypeError) as exc:
+                parser.error(f"Invalid target line {number}: {exc}")
+    simulation = PandaSimulation(duration=args.duration, width=args.width, height=args.height, control_mode=args.control_mode,
+        smoothing=args.smoothing, max_jerk=args.max_jerk, differential_ik=args.differential_ik,
+        nullspace_gain=args.nullspace_gain, joint_centering_gain=args.joint_centering_gain,
+        external_targets=args.target_stdin or args.targets is not None)
     paused = threading.Event()
 
     def key_callback(key):
@@ -445,6 +516,24 @@ def main(argv=None):
             paused.clear() if paused.is_set() else paused.set()
 
     with ExitStack() as stack:
+        if args.log:
+            args.log.parent.mkdir(parents=True, exist_ok=True)
+            simulation.recorder = stack.enter_context(JsonlRecorder(args.log))
+        if args.target_stdin:
+            def read_targets():
+                try:
+                    for line in sys.stdin:
+                        try:
+                            if len(line) > 65536:
+                                raise ValueError("target line exceeds 64 KiB")
+                            command = command_from_dict(json.loads(line), stamp_ns=simulation.tick * 10_000_000)
+                            simulation.targets.publish(command)
+                        except (ValueError, TypeError) as exc:
+                            simulation.last_input_error = str(exc)
+                            simulation.targets.clear()
+                finally:
+                    simulation.targets.clear()  # EOF/disconnect means stop.
+            threading.Thread(target=read_targets, name="panda-target-input", daemon=True).start()
         viewer = None
         if not args.headless:
             viewer = stack.enter_context(passive_viewer(simulation.model, simulation.data, key_callback))
@@ -461,6 +550,7 @@ def main(argv=None):
             writer = stack.enter_context(imageio.get_writer(str(args.record), fps=args.fps, codec="libx264", quality=8, macro_block_size=1))
         render_cam = camera()
         next_frame, next_view, next_tick = 0.0, 0.0, time.perf_counter()
+        target_index = 0
         try:
             while simulation.time < args.duration - 1e-9 and (viewer is None or viewer.is_running()):
                 if paused.is_set():
@@ -474,6 +564,9 @@ def main(argv=None):
                     writer.append_data(annotate(renderer.render(), simulation))
                     next_frame += 1 / args.fps
                 with viewer.lock() if viewer is not None else nullcontext():
+                    while target_index < len(scheduled) and scheduled[target_index][0] <= simulation.time + 1e-9:
+                        simulation.targets.publish(scheduled[target_index][1])
+                        target_index += 1
                     simulation.step()
                     if viewer is not None and simulation.time >= next_view:
                         draw_paths(viewer.user_scn, simulation, clear=True)
@@ -481,6 +574,7 @@ def main(argv=None):
                     if simulation.time >= next_view:
                         viewer.sync()
                         next_view += 1 / 30
+                if viewer is not None or args.target_stdin:
                     next_tick += CONTROL_DT
                     time.sleep(max(0.0, next_tick - time.perf_counter()))
         except KeyboardInterrupt:

@@ -44,7 +44,7 @@ command = JointPositionCommand(
 | `GOAL_REACHED` | 参考误差和真实位置误差均已进入容差；仍须检查动作与实际速度 |
 | `HOLD` | 参考已静止；不单独证明真实设备已准确到位 |
 
-外部碰撞速度缩放、故障锁存、模式切换及复位逻辑保持适用。全套 [执行契约](design.md) 仍有效；当前没有 jerk 限制或端到端碰撞安全保证。
+外部碰撞速度缩放、故障锁存、模式切换及复位逻辑保持适用。全套 [执行契约](design.md) 仍有效；`0.3.0` 可通过 `motion_generator=RuckigSmoothing(...)` 启用 jerk 限制；使用 Ruckig 时直接规划完整关节位置目标，以 `sample_reference(t)` 采样。没有端到端碰撞安全保证。
 
 ## C++ 用法
 

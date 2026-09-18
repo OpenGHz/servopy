@@ -25,9 +25,25 @@ class PyKinematics : public Kinematics {
   }
 };
 
+class PyDifferentialIK : public DifferentialIK {
+ public:
+  using DifferentialIK::DifferentialIK;
+  Vector solve(const DifferentialIKRequest& r) override { PYBIND11_OVERRIDE_PURE(Vector, DifferentialIK, solve, r); }
+};
+class PyMotionGenerator : public MotionGenerator {
+ public:
+  using MotionGenerator::MotionGenerator;
+  void reset() override { PYBIND11_OVERRIDE_PURE(void, MotionGenerator, reset); }
+  MotionOutput generate(const Reference& start, const Vector& velocity, const std::optional<Vector>& position,
+      double dt, const Limits& limits) override {
+    PYBIND11_OVERRIDE_PURE(MotionOutput, MotionGenerator, generate, start, velocity, position, dt, limits);
+  }
+  Reference sample(double elapsed) const override { PYBIND11_OVERRIDE_PURE(Reference, MotionGenerator, sample, elapsed); }
+};
+
 PYBIND11_MODULE(_core, m) {
   m.doc() = "ROS-independent servo kernel (C++17/Eigen)";
-  m.attr("__version__") = "0.2.0";
+  m.attr("__version__") = "0.3.0";
   m.def("valid_pose", &valid_pose);
   m.def("rotation_log", &rotation_log);
   py::enum_<JointType>(m, "JointType")
@@ -48,6 +64,7 @@ PYBIND11_MODULE(_core, m) {
   FLAG(COLLISION_DISABLED) FLAG(COLLISION_MISSING) FLAG(COLLISION_STALE)
   FLAG(COLLISION_DECELERATION) FLAG(COLLISION_HALT) FLAG(INFEASIBLE) FLAG(FAULT_LATCHED)
   FLAG(GOAL_REACHED) FLAG(MODE_SWITCH) FLAG(MODEL_ERROR)
+  FLAG(JERK_LIMIT) FLAG(SOLVER_ERROR) FLAG(SMOOTHING_ERROR) FLAG(SMOOTHING_FALLBACK)
 #undef FLAG
   py::class_<Limits>(m, "Limits").def(py::init<>())
     .def_readwrite("lower", &Limits::lower).def_readwrite("upper", &Limits::upper)
@@ -75,6 +92,7 @@ PYBIND11_MODULE(_core, m) {
   FIELD(min_damping) FIELD(max_damping) FIELD(damping_threshold)
   FIELD(singularity_soft) FIELD(singularity_hard) FIELD(singularity_probe_step) FIELD(singularity_escape_epsilon)
   FIELD(collision_required) FIELD(task_axes) FIELD(task_weights)
+  FIELD(nullspace_gain) FIELD(joint_centering_gain) FIELD(nullspace_reference)
 #undef FIELD
   py::class_<State>(m, "State")
     .def(py::init([](Vector q, Vector dq, std::int64_t stamp) { return State{std::move(q), std::move(dq), stamp}; }));
@@ -89,23 +107,48 @@ PYBIND11_MODULE(_core, m) {
     .def(py::init([](double scale, std::int64_t stamp, std::int64_t source) {
       return CollisionSample{scale, stamp, source}; }));
   py::class_<Reference>(m, "Reference")
+    .def(py::init([](Vector q, Vector dq, Vector ddq, std::int64_t stamp) {
+      return Reference{std::move(q), std::move(dq), std::move(ddq), stamp};
+    }), py::arg("q"), py::arg("dq"), py::arg("ddq"), py::arg("stamp_ns") = 0)
     .def_property_readonly("q", [](const Reference& r) { return Vector(r.q); })
     .def_property_readonly("dq", [](const Reference& r) { return Vector(r.dq); })
     .def_property_readonly("ddq", [](const Reference& r) { return Vector(r.ddq); })
     .def_readonly("stamp_ns", &Reference::stamp_ns);
+  py::class_<DifferentialIKRequest>(m, "DifferentialIKRequest").def(py::init<>())
+    .def_readwrite("jacobian", &DifferentialIKRequest::jacobian)
+    .def_readwrite("task", &DifferentialIKRequest::task).def_readwrite("q", &DifferentialIKRequest::q)
+    .def_readwrite("lower", &DifferentialIKRequest::lower).def_readwrite("upper", &DifferentialIKRequest::upper)
+    .def_readwrite("preferred_velocity", &DifferentialIKRequest::preferred_velocity)
+    .def_readwrite("damping", &DifferentialIKRequest::damping);
+  py::class_<DifferentialIK, PyDifferentialIK, std::shared_ptr<DifferentialIK>>(m, "DifferentialIK")
+    .def(py::init<>()).def("solve", &DifferentialIK::solve);
+  py::class_<DampedLeastSquares, DifferentialIK, std::shared_ptr<DampedLeastSquares>>(m, "DampedLeastSquares")
+    .def(py::init<>());
+  py::class_<BoxQPSolver, DifferentialIK, std::shared_ptr<BoxQPSolver>>(m, "BoxQPSolver")
+    .def(py::init<int, double>(), py::arg("max_iterations") = 200, py::arg("tolerance") = 1e-9);
+  py::class_<MotionOutput>(m, "MotionOutput").def(py::init<>())
+    .def_readwrite("reference", &MotionOutput::reference)
+    .def_readwrite("flags", &MotionOutput::flags).def_readwrite("braking", &MotionOutput::braking);
+  py::class_<MotionGenerator, PyMotionGenerator, std::shared_ptr<MotionGenerator>>(m, "MotionGenerator")
+    .def(py::init<>()).def("reset", &MotionGenerator::reset)
+    .def("generate", &MotionGenerator::generate).def("sample", &MotionGenerator::sample);
   py::class_<Diagnostics> diagnostics(m, "Diagnostics");
 #define READ(name) diagnostics.def_readonly(#name, &Diagnostics::name);
   READ(sigma_min) READ(damping) READ(singularity_scale) READ(velocity_scale)
   READ(collision_scale) READ(tracking_error) READ(position_error) READ(orientation_error)
   READ(joint_position_error)
+  READ(task_residual) READ(nullspace_speed)
 #undef READ
   py::class_<Result>(m, "Result")
     .def_readonly("action", &Result::action).def_readonly("reference", &Result::reference)
     .def_readonly("flags", &Result::flags).def_readonly("diagnostics", &Result::diagnostics)
     .def_readonly("message", &Result::message);
   py::class_<ServoCore>(m, "ServoCore")
-    .def(py::init<std::shared_ptr<Kinematics>, Limits, Config>(), py::keep_alive<1, 2>())
+    .def(py::init<std::shared_ptr<Kinematics>, Limits, Config, std::shared_ptr<DifferentialIK>, std::shared_ptr<MotionGenerator>>(),
+      py::arg("model"), py::arg("limits"), py::arg("config"), py::arg("differential_ik") = nullptr,
+      py::arg("motion_generator") = nullptr, py::keep_alive<1, 2>(), py::keep_alive<1, 5>(), py::keep_alive<1, 6>())
     .def("step", &ServoCore::step, py::arg("state"), py::arg("command"), py::arg("dt"),
       py::arg("now_ns"), py::arg("collision") = std::nullopt, py::call_guard<py::gil_scoped_release>())
-    .def("reset", &ServoCore::reset, py::call_guard<py::gil_scoped_release>());
+    .def("reset", &ServoCore::reset, py::call_guard<py::gil_scoped_release>())
+    .def("sample_reference", &ServoCore::sample_reference, py::call_guard<py::gil_scoped_release>());
 }

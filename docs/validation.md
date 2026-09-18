@@ -139,3 +139,52 @@ dynamics run and ends in HOLD.
 No new interactive viewer or physical-robot verification is claimed. Existing
 position-actuator gravity offsets and the lack of jerk/geometric collision
 checking still apply. Pending capabilities are tracked in `roadmap.md`.
+
+## Version 0.3.0: smoothing, solver plugins and runtime
+
+Date: 2026-09-18. A rebuilt 0.3.0 wheel was installed and all **178 Python
+tests passed** with MuJoCo 3.13.0, Pinocchio 4.1.0 and optional Ruckig 0.12.2.
+A separate Python-free C++ build and CTest passed. The latter now tests bounded
+QP redistribution, native solver injection and reference interval sampling.
+The source archive was inspected for the new native/Python modules, examples,
+documentation and tests, and excludes build products and virtual environments.
+
+The 50 added tests cover a QP oracle that independently enumerates active sets,
+constraint redistribution, invalid solver outputs, seven-joint nullspace
+posture under both Twist and already-reached Pose targets, finite-limit
+centering, jerk continuity, target reversal, variable periods, position-boundary
+stops, infeasible initial stops, command expiry, and generator reset failures.
+A regression covers Ruckig 0.12's spurious position-extrema zero for a stationary
+joint at a nonzero position. The wrapper instead computes analytic extrema
+over the executed polynomial phases and validates the retained stopping path.
+
+Runtime tests use an injected deterministic clock to exercise mailbox copy
+ownership, timestamp preservation, cancellation, controlled stop, recovery,
+stale feedback, failed reads/writes, late scheduling, slow feedback/recording,
+and Ruckig device sampling. JSONL tests replay recorded state/commands exactly,
+detect deliberately perturbed numerical references and reject misaligned
+timestamps. JointTrajectory comparison uses synthetic exports and validates
+joint names; it does not use an actual MoveIt execution.
+
+All three Panda modes additionally ran 18 seconds with Ruckig, checking sampled
+acceleration continuity, reference joint bounds, actual motion and final HOLD.
+The torque run also enabled native QP and home-posture nullspace control.
+Existing default-mode tracking regressions remain passing. A six-second CLI
+run used scheduled external joint targets, Ruckig, JSONL recording and metrics;
+it produced 600 records, reached HOLD, and its self-comparison had zero q/dq/ddq,
+action and flag differences. Position actuator gravity offsets remain.
+An additional six-second headless live-stdin trial sent joint targets at 20 Hz,
+then closed the stream. It generated 600 records, moved the first reference
+joint by 0.032 rad, cleared the target on EOF and finished in HOLD.
+
+A best-effort wall-clock runner trial during concurrent build activity hit
+its 5 ms lateness budget and stopped with TimeoutError. A subsequent trial
+completed 101 cycles with no deadline misses, maximum observed lateness
+1.396 ms and maximum cycle computation/I/O time 2.504 ms. These two observations
+demonstrate the overload policy, not a real-time or hardware-frequency guarantee.
+
+No new viewer/graphics, physical robot, vendor communication protocol,
+geometric collision, position-mode gravity compensation, cross-platform build
+or real MoveIt numerical-equivalence validation is claimed. Hardware SDK
+callbacks and offline comparison tools are available for those environment-
+dependent checks; their remaining scope is recorded in `roadmap.md`.

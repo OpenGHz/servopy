@@ -181,3 +181,17 @@ python -m pytest -q tests/test_mujoco_panda.py
 ## 模型来源
 
 模型来自 Google DeepMind 的 [MuJoCo Menagerie / Franka Emika Panda](https://github.com/google-deepmind/mujoco_menagerie/tree/71f066ad0be9cd271f7ed58c030243ef157af9f4/franka_emika_panda)，固定到提交 `71f066ad0be9cd271f7ed58c030243ef157af9f4`。原始 MJCF、mesh 和许可证保存在 [examples/assets](../examples/assets/README.md)，使用 Apache-2.0；加载时增加的场景、TCP 与执行器修改集中在示例的 `load_panda()` 中。
+
+## 0.3.0 可选控制与外部目标
+
+```bash
+CMAKE_BUILD_PARALLEL_LEVEL=2 python -m pip install --upgrade '.[mujoco,ruckig]'
+python examples/mujoco_panda.py --control-mode joint-position --smoothing ruckig
+python examples/mujoco_panda.py --control-mode ik-position --smoothing ruckig
+python examples/mujoco_panda.py --differential-ik qp --nullspace-gain 0.1 --smoothing ruckig
+python examples/mujoco_panda.py --control-mode joint-position --target-stdin --log run.jsonl
+```
+
+新增 Ruckig jerk 上限（`--max-jerk`，默认 30 rad/s³）与统一参考采样。`--differential-ik qp`、`--nullspace-gain`、`--joint-centering-gain` 用于 torque 模式的 Pose/Twist 分支。
+
+`--target-stdin` 接收实时 JSONL；`--targets` 读取带 time 字段的定时目标文件；`--log` 保存控制记录。目标保留源时间戳并继续接受超时检查。输入格式、记录内容、调度限制和数值对照见 [高级控制接口](advanced-control.md)。这些选项不改变位置执行器的重力稳态偏差。

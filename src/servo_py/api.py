@@ -1,4 +1,4 @@
-"""Typed Python entry point. All motion math and reference generation live in C++."""
+"""Typed Python entry point for the native kernel and optional motion backends."""
 from __future__ import annotations
 
 from dataclasses import dataclass, fields
@@ -38,6 +38,10 @@ class SafetyFlag(IntFlag):
     GOAL_REACHED = _core.GOAL_REACHED
     MODE_SWITCH = _core.MODE_SWITCH
     MODEL_ERROR = _core.MODEL_ERROR
+    JERK_LIMIT = _core.JERK_LIMIT
+    SOLVER_ERROR = _core.SOLVER_ERROR
+    SMOOTHING_ERROR = _core.SMOOTHING_ERROR
+    SMOOTHING_FALLBACK = _core.SMOOTHING_FALLBACK
 
 
 @dataclass(frozen=True)
@@ -66,6 +70,9 @@ class ServoConfig:
     collision_required: bool = False
     task_axes: Sequence[int] = (0, 1, 2, 3, 4, 5)
     task_weights: ArrayLike = (1., 1., 1., 1., 1., 1.)
+    nullspace_gain: float = 0.0
+    joint_centering_gain: float = 0.0
+    nullspace_reference: ArrayLike = ()
 
     def _native(self):
         config = _core.Config()
@@ -172,7 +179,7 @@ class Servo:
     """Single-consumer, stateful servo. REJECT latches until explicit reset()."""
 
     def __init__(self, model: Kinematics, config: ServoConfig | None = None,
-                 limits: JointLimits | None = None):
+                 limits: JointLimits | None = None, *, differential_ik=None, motion_generator=None):
         self.model = model
         self.config = config or ServoConfig()
         native_limits = limits._native() if limits is not None else model.limits
@@ -180,7 +187,9 @@ class Servo:
             name: np.asarray(getattr(native_limits, name)).copy()
             for name in ("lower", "upper", "velocity", "acceleration", "margin")
         })
-        self._core = _core.ServoCore(model, native_limits, self.config._native())
+        self.differential_ik = differential_ik
+        self.motion_generator = motion_generator
+        self._core = _core.ServoCore(model, native_limits, self.config._native(), differential_ik, motion_generator)
         self._names = tuple(model.joint_names())
         self._indices = {name: i for i, name in enumerate(self._names)}
         self._base = model.base_frame()
@@ -196,6 +205,10 @@ class Servo:
 
     def reset(self, state: JointState, *, now_ns: int):
         self._core.reset(state._native(), now_ns)
+
+    def sample_reference(self, elapsed: float):
+        """Sample the last accepted interval, in seconds from its start."""
+        return self._core.sample_reference(elapsed)
 
     def _command(self, command, now_ns):
         result = _core.Command()
