@@ -68,7 +68,10 @@ def main():
     def find_window():
         for window in connection.screen().root.query_tree().children:
             name = window.get_wm_name() or ""
-            if "mujoco" in str(name).lower():
+            geometry = window.get_geometry()
+            if ("mujoco" in str(name).lower()
+                    and window.get_attributes().map_state == X.IsViewable
+                    and geometry.width >= 320 and geometry.height >= 240):
                 return window
         return None
 
@@ -106,24 +109,26 @@ def main():
             window = wait_for(find_window, "MuJoCo window")
             window.set_input_focus(X.RevertToParent, X.CurrentTime)
             connection.sync()
+            wait_for(lambda: connection.get_input_focus().focus == window, "viewer input focus")
             initial = wait_for(lambda: after_time(.5), "first control records")
             initial_pose = np.asarray(initial["command"]["pose"])
             initial_q = np.asarray(initial["state"]["q"])
+            screenshot(window, "initial.png")
 
             drag(window, 3, 18, -12)  # Ctrl + right button translates the selected target.
             translated = wait_for(lambda: after_time(initial["now_ns"] / 1e9 + 4), "translation tracking")
             moved_pose = np.asarray(translated["command"]["pose"])
             distance = float(np.linalg.norm(moved_pose[:3, 3] - initial_pose[:3, 3]))
+            screenshot(window, "translated.png")
             assert distance > .005, f"Mouse translation did not move target: {distance}"
             assert np.max(np.abs(np.asarray(translated["state"]["q"]) - initial_q)) > .001
-            screenshot(window, "translated.png")
 
             drag(window, 1, 7, -4)  # Ctrl + left button rotates it.
             rotated = wait_for(lambda: after_time(translated["now_ns"] / 1e9 + 4), "rotation tracking")
             rotated_pose = np.asarray(rotated["command"]["pose"])
             rotation = float(np.linalg.norm(rotated_pose[:3, :3] - moved_pose[:3, :3]))
-            assert rotation > .005, f"Mouse rotation did not rotate target: {rotation}"
             screenshot(window, "rotated.png")
+            assert rotation > .005, f"Mouse rotation did not rotate target: {rotation}"
 
             # Pause, drag without advancing physics, then reset the handle to
             # the measured TCP. Resume should use this pose, not the paused drag.
