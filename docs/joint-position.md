@@ -1,59 +1,81 @@
-# 原生关节位置控制
+# 关节位置与速度控制
 
-`servo-py 0.2.0` 增加 Python `JointPositionCommand` 与 C++ `CommandType::JOINT_POSITION`。控制器可直接输入关节目标，内核计算连续、受关节位置/速度/加速度约束的参考。它不调用 FK、Jacobian 或 IK，也不限制 TCP 速度。
+**目标：** 完成一次关节目标跟踪和停止，理解命名映射与目标到达。前置：已完成 [安装](getting-started.md)。本页完整示例只需要基础依赖。
 
-## Python 用法
+## 1. 运行完整关节位置循环
 
+以下代码在仓库根目录直接运行，使用二维模型与理想反馈。前 6 秒由本地任务持续发布同一关节目标，后 2 秒发 Stop；仿真时间不会等待墙钟。
+
+<!-- runnable: joint-position-loop -->
 ```python
-from servo_py import JointPositionCommand, Servo, ServoConfig
-
-servo = Servo(model, ServoConfig(
-    joint_position_gain=2.0,       # 1/s
-    joint_position_tolerance=1e-4, # 转动关节 rad，移动关节 m
-))
-command = JointPositionCommand(positions=q_target, stamp_ns=target_stamp_ns)
-result = servo.step(state, command, dt=0.01, now_ns=now_ns)
-```
-
-实际反馈 `state`、目标时间戳、当前时间以及下游执行由调用方提供。`result.reference.q/dq/ddq` 仍是下一周期端点参考。真实设备必须执行参考而非把它当成真实反馈；遇到 `REJECT` 或异常应取消旧队列并调用设备停止接口。
-
-自由度少于 6 的模型仍须在构造 Servo 时选择合适的 `task_axes`，例如两关节模型使用 `ServoConfig(task_axes=(0, 1))`；这是当前通用配置的校验要求，并不会在关节位置分支启用笛卡尔求解。
-
-无名称时，目标顺序必须与 `model.joint_names()` 一致。带名称时允许任意排列，但必须覆盖所有受控关节。例如两关节模型名称为 `shoulder, elbow`：
-
-```python
-command = JointPositionCommand(
-    positions=[-0.7, 0.4], names=["elbow", "shoulder"], stamp_ns=now_ns,
+import numpy as np
+from servo_py import (
+    Action, JointPositionCommand, JointState, Servo, ServoConfig,
+    StopCommand, load_urdf,
 )
+
+model = load_urdf(
+    "examples/planar2.urdf", base="base", tip="tool",
+    acceleration_limits=[3.0, 3.0],
+)
+servo = Servo(model, ServoConfig(task_axes=(0, 1)))
+q, dq = np.array([0.5, -1.0]), np.zeros(2)
+target = np.array([0.7, -0.7])
+for tick in range(800):
+    now = tick * 10_000_000
+    command = JointPositionCommand(target, now) if tick < 600 else StopCommand()
+    result = servo.step(JointState(q, dq, now), command, dt=0.01, now_ns=now)
+    if result.action == Action.REJECT:
+        raise RuntimeError(result.message)
+    q, dq = result.reference.q, result.reference.dq  # 仅用于理想反馈回放。
+
+assert result.action == Action.HOLD
+assert np.max(np.abs(q - target)) < 1.1e-4
+assert np.max(np.abs(dq)) < 1e-9
+print(result.action.name, "joint error:", np.max(np.abs(q - target)))
 ```
 
-只指定部分关节、重名、未知名称或错误维度均视为无效指令，触发受控制动。省略的关节不会被补为零目标；这与支持子集速度命令的 `JointJogCommand` 不同。
+预期：最终 `HOLD`，最大关节目标误差小于 `1.1e-4 rad`。接真实设备时，用测量值构造 `JointState`，并把参考交给控制器；不要用参考覆盖真实反馈。
 
-## 数值与状态语义
+## 2. 理解关节位置分支
 
-内核先计算 `error = model.difference(q_target, q_reference)`，再使用 `joint_position_gain * error` 作为待约束速度。`q_reference` 是上一步接受的参考，真实反馈用于独立的状态和跟踪误差保护。连续关节采用最短角差，参考位置保持展开；转动关节用 rad，移动关节用 m。
+默认反馈律基于上一参考的位置：`desired_dq = joint_position_gain * model.difference(target, reference.q)`。随后应用速度、加速度和采样制动位置约束。连续关节使用最短角差，参考角度保持展开。
 
-目标必须在 `lower + margin` 到 `upper - margin` 内，且全部有限；不会悄悄裁剪越界目标。无效、过期和未来时间戳的指令按现有规则请求制动，正常情况下不锁存故障。有效关节限位可通过 `servo.limits` 读取，返回值为独立副本。
+完整目标必须在 `lower + margin` 与 `upper - margin` 内。错误维度、NaN 或越限目标会请求制动。该分支不调用 FK/Jacobian/IK，也不直接约束 TCP 速度；任务空间行为需要由上层目标规划控制。
 
-`joint_position_gain` 与 `joint_position_tolerance` 必须为有限正数，默认分别为 `2.0` 和 `1e-4`。参考误差进入容差时请求制动，随后保持。位置反馈律不保证单调接近目标，高增益、初始速度或突然反向时可能超调；现有约束保证的是参考满足关节限位，不是任何目标变化都能立即到达。
+## 3. 按名称传目标
 
-| 返回信息 | 含义 |
+以下是命令构造片段。位置目标必须覆盖全部关节，但可以重排；关节速度命令允许子集，未列关节的目标速度为零。
+
+```python
+from servo_py import JointJogCommand, JointPositionCommand
+
+position = JointPositionCommand(
+    positions=[-0.7, 0.7], names=["elbow", "shoulder"], stamp_ns=0,
+)
+jog = JointJogCommand(velocities=[0.05], names=["elbow"], stamp_ns=0)
+```
+
+重复、未知或遗漏的位置关节名称均无效。无名称时按 `model.joint_names()` 顺序；转动关节单位是 rad，不是角度。
+
+## 4. 区分 HOLD 与到达目标
+
+| 信号 | 含义 |
 |---|---|
-| `diagnostics.joint_position_error` | 目标与本周期真实反馈的最大绝对关节差 |
-| `diagnostics.tracking_error` | 上一步参考与本周期真实反馈的最大绝对关节差 |
-| `GOAL_REACHED` | 参考误差和真实位置误差均已进入容差；仍须检查动作与实际速度 |
-| `HOLD` | 参考已静止；不单独证明真实设备已准确到位 |
+| `diagnostics.joint_position_error` | 目标与实际关节的最大绝对差 |
+| `diagnostics.tracking_error` | 生成参考与实际关节的最大绝对差 |
+| `GOAL_REACHED` | 参考与实际目标误差都进入 `joint_position_tolerance` |
+| `HOLD` | 参考静止，可能来自 Stop、命令过期或到达目标 |
 
-外部碰撞速度缩放、故障锁存、模式切换及复位逻辑保持适用。全套 [执行契约](design.md) 仍有效；`0.3.0` 可通过 `motion_generator=RuckigSmoothing(...)` 启用 jerk 限制；使用 Ruckig 时直接规划完整关节位置目标，以 `sample_reference(t)` 采样。没有端到端碰撞安全保证。
+不能仅用 `HOLD` 判断运动成功。目标是否达到看误差与 flags；真实设备是否停止还要看反馈速度。
 
-## C++ 用法
+## 5. 启用 jerk 约束或执行到 Panda
 
-```cpp
-servo_py::Command command;
-command.type = servo_py::CommandType::JOINT_POSITION;
-command.joint_position = target;
-command.stamp_ns = now_ns;
-auto result = servo.step(state, command, 0.01, now_ns);
+`motion_generator=RuckigSmoothing(...)` 会对有效关节目标直接规划位置轨迹；此时比例增益不决定该轨迹的运动速度。执行端应使用 `sample_reference(t)`，细节见 [平滑教程](smoothing.md)。
+
+```bash
+python examples/mujoco_panda.py --control-mode joint-position
+python examples/mujoco_panda.py --control-mode ik-position
 ```
 
-已有位置 IK 可通过 [PositionIKAdapter](python-ik.md#推荐接法positionikadapter) 生成这个指令。Panda 的 `--control-mode joint-position` 与 `--control-mode ik-position` 都已接入此路径。
+前者直接给关节目标，后者先做位置 IK。完整区别见 [Panda 三种模式](mujoco-panda.md#三种控制模式)。下一步：[已有 IK 接入](python-ik.md) · [动作与诊断](status.md) · [设备循环](runtime.md)

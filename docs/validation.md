@@ -188,3 +188,28 @@ geometric collision, position-mode gravity compensation, cross-platform build
 or real MoveIt numerical-equivalence validation is claimed. Hardware SDK
 callbacks and offline comparison tools are available for those environment-
 dependent checks; their remaining scope is recorded in `roadmap.md`.
+
+## Documentation refresh after 0.3.0
+
+Date: 2026-09-18. The documentation refresh does not change control code or
+supersede the functional test results above. The following documentation checks
+were run locally on Linux / Python 3.12:
+
+- `python scripts/check_docs.py --run` checked 27 Markdown files, local links
+  and anchors, all 38 public exports, 27 ServoConfig defaults, 28 SafetyFlag
+  names and 24 CLI options. All eight marked Python examples executed in
+  isolated processes, including joint control, position IK, QP, Ruckig braking,
+  deterministic scheduling, target-file creation and record/replay.
+- The quickstart `track_pose.py` run completed 1,200 steps in HOLD with a final
+  position error of 9.8116e-5 m, matching the documented expected output.
+- The target-file workflow in [the recording tutorial](recording.md) ran eight
+  seconds in Panda joint-position mode. It generated 800 JSONL records, reported
+  no input error and finished in HOLD.
+- MkDocs 1.6.1 / Material 9.7.7 built with `--strict`. The generated search index
+  includes Chinese word segmentation via jieba 0.42.1. The source distribution
+  contains the documentation, build configuration, checker and workflow, with
+  generated site files excluded.
+
+The [documentation workflow](https://github.com/OpenGHz/servopy/blob/main/.github/workflows/docs.yml)
+runs the checker, Python examples and strict site build. This local validation
+does not claim a completed GitHub Actions run or a deployed documentation site.

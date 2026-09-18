@@ -1,0 +1,45 @@
+# 更新与迁移
+
+此处按功能版本记录变化；验证环境与数值结果集中保留在 [验证记录](validation.md)。这些条目描述源码版本，不表示已向 PyPI 发布或提供跨平台 wheel。
+
+## 未发布的文档更新
+
+- 重写中文 README，增加英文入口和按任务组织的文档首页。
+- 补充快速上手、完整控制/IK 示例、参数/API/诊断/CLI 参考与排障。
+- 将高级控制长文拆成独立教程，保留原入口。
+- 增加 MkDocs Material 本地预览、中文搜索分词、文档一致性检查及 GitHub Actions 工作流。
+
+## 0.3.0 — 2026-09-18
+
+- 增加可选 RuckigSmoothing、连续轨迹采样及保留可行停止的回退策略。
+- 增加 C++/Python DifferentialIK、盒约束 QP、零空间姿态与关节居中。
+- 增加周期调度、设备回调协议、最新目标邮箱、取消与恢复。
+- Panda 支持外部目标、控制记录；提供 JSONL 回放及 JointTrajectory 数值比较。
+- 增加 SOLVER_ERROR、SMOOTHING_ERROR、SMOOTHING_FALLBACK 等诊断信息。
+
+### 从 0.2.0 升级
+
+重新安装本项目以更新 C++ 绑定。现有构造和默认恒加速度行为保持；高级后端均需显式启用。Ruckig 用户应改用 `sample_reference(t)` 执行区间，不可用端点 ddq 假定整段恒加速度。开启零空间后，Pose 的 GOAL_REACHED 可与 TRACK 同时出现。
+
+```bash
+CMAKE_BUILD_PARALLEL_LEVEL=2 python -m pip install --upgrade '.[mujoco,ruckig]'
+```
+
+## 0.2.0 — 2026-09-18
+
+- 增加原生 JointPositionCommand、完整关节名称映射与 joint_position_error。
+- 增加 PositionIKAdapter，对位置 IK 解做限位、连续性和 FK 残差校验。
+- Panda 两种位置执行器模式改用包级关节命令和共享适配器。
+
+### 从旧版 JointJog 包装升级
+
+已有 `q_target` 时直接发送 `JointPositionCommand(q_target, source_stamp_ns)`，无需在 Python 手写位置误差到 JointJog 的比例律。已有位置 IK 时使用 PositionIKAdapter；保留源时间戳，失败命令仍交给 Servo 制动。
+
+## 0.1.0 — 初始实现
+
+- 独立 C++17/Eigen 内核、Python 绑定、JointJog/Twist/Pose/Stop。
+- DLS、奇异性策略、关节约束、时序检查与故障锁存。
+- URDF/串联模型、Pinocchio 后端及理想回放/基准脚本。
+- 后续同版本示例更新加入 Panda 动力学、viewer/录制与两种位控路径。
+
+下一步：[功能状态](roadmap.md) · [参数默认值](configuration.md) · [贡献指南](contributing.md)
