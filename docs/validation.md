@@ -318,3 +318,14 @@ The release gate now requires the manifest and model loader while rejecting
 Panda ZIPs in either distribution. First use of the installed Panda demo
 requires network access or a separately supplied archive; importing ServoPy
 and using the core API do not fetch the model.
+
+The updated [Linux distribution run](https://github.com/OpenGHz/servopy/actions/runs/35327133523)
+passed for commit `96ac8bb6b6c6fb015308c119b55ea26c96c93728`. All five
+x86_64 wheels are approximately **414–418 kB**; all five ARM64 wheels are
+approximately **378–382 kB**. Each CPython 3.10–3.14 wheel passed its core
+tests (167 passes on x86_64 with Ruckig, 158 on ARM64 without it). Ubuntu
+22.04 / Python 3.10 and 24.04 / Python 3.12 on x86_64 each passed all 188
+tests; Ubuntu 24.04 / Python 3.12 on ARM64 passed 176 tests with 5 optional
+Ruckig-related skips. All three Ubuntu jobs passed the installed Panda
+download/cache/offline checks. The complete-distribution gate passed, and
+publishing jobs remained skipped on this main-branch build.

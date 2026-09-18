@@ -21,7 +21,7 @@ Ubuntu 20.04 的 glibc 满足二进制基线，但默认 Python 3.8 不满足项
 
 [Python distributions 工作流](https://github.com/OpenGHz/servopy/actions/workflows/release.yml) 在 pull request、main 推送、手动运行和 GitHub Release 发布时执行：
 
-首次完整[验证运行](https://github.com/OpenGHz/servopy/actions/runs/35324779011)已通过，生成 10 个 wheel 和 1 个 sdist；这是移除内置 Panda 模型之前的历史构建。当前打包方式及测试记录见[模型按需下载验证](validation.md#panda-model-download-and-smaller-distributions)。首次 main 构建没有向 TestPyPI 或 PyPI 上传。
+当前[验证运行](https://github.com/OpenGHz/servopy/actions/runs/35327133523)已通过，生成 10 个不含 Panda 模型的 wheel 和 1 个 sdist。wheel 约为 0.38–0.42 MB，测试条件及模型下载验证见[验证记录](validation.md#panda-model-download-and-smaller-distributions)。这次 main 构建没有向 TestPyPI 或 PyPI 上传。
 
 1. 检查 pyproject、CMake 和 C++ 绑定中的版本一致，构建 sdist 并检查 PyPI 元数据。
 2. 在原生 x86_64 / ARM64 runner 的 manylinux_2_28 容器内，从该 sdist 构建所有 wheel，并由 auditwheel 检查、修复依赖。
