@@ -17,7 +17,7 @@
 <p align="center">
   <a href="#快速上手">快速上手</a> &nbsp;·&nbsp;
   <a href="#panda-演示">Panda 演示</a> &nbsp;·&nbsp;
-  <a href="#文档">文档</a>
+  <a href="https://openghz.github.io/servopy/">在线文档</a>
 </p>
 
 ---
@@ -85,7 +85,7 @@ if result.action == Action.REJECT:
 print(result.action.name, result.reference.q)
 ```
 
-预期输出：`TRACK [ 0.50015 -0.99985]`。接下来阅读[完整关节控制循环](docs/joint-position.md)，并通过[设备接入](docs/runtime.md)了解执行时序与设备侧停止。
+预期输出：`TRACK [ 0.50015 -0.99985]`。接下来阅读[完整关节控制循环](https://openghz.github.io/servopy/joint-position/)，并通过[设备接入](https://openghz.github.io/servopy/runtime/)了解执行时序与设备侧停止。
 
 ## Panda 演示
 
@@ -102,26 +102,28 @@ python examples/mujoco_panda.py --control-mode joint-position
 | `joint-position` | 关节目标 → 关节参考 → 位置执行器 |
 | `ik-position` | 位姿 → 位置 IK → 关节参考 → 位置执行器 |
 
-默认运行 18 秒仿真，按**空格**暂停，无桌面时加 `--headless`。模型资产随源码提供。[Panda 教程](docs/mujoco-panda.md)进一步介绍 Ruckig 平滑、外部目标、录制和实际跟踪表现。
+默认运行 18 秒仿真，按**空格**暂停，无桌面时加 `--headless`。模型资产随源码提供。[Panda 教程](https://openghz.github.io/servopy/mujoco-panda/)进一步介绍 Ruckig 平滑、外部目标、录制和实际跟踪表现。
 
 ## 文档
 
-教程和 API 参考以中文维护；[设计契约](docs/design.md)与[验证记录](docs/validation.md)为英文。
+[打开在线文档 →](https://openghz.github.io/servopy/)：支持全文搜索的入门指南、控制教程和 API 参考。
+
+教程和 API 参考以中文维护；[设计契约](https://openghz.github.io/servopy/design/)与[验证记录](https://openghz.github.io/servopy/validation/)为英文。
 
 | 下一步 | 阅读入口 |
 |---|---|
-| 编写控制器 | [关节控制](docs/joint-position.md) · [位置 IK](docs/python-ik.md) |
-| 调整或扩展 | [轨迹平滑](docs/smoothing.md) · [QP 与零空间](docs/solvers.md) · [C++](docs/cpp.md) |
-| 接入与分析 | [设备和调度](docs/runtime.md) · [记录与回放](docs/recording.md) |
-| 查询接口 | [API](docs/api.md) · [配置](docs/configuration.md) · [排障](docs/troubleshooting.md) |
+| 编写控制器 | [关节控制](https://openghz.github.io/servopy/joint-position/) · [位置 IK](https://openghz.github.io/servopy/python-ik/) |
+| 调整或扩展 | [轨迹平滑](https://openghz.github.io/servopy/smoothing/) · [QP 与零空间](https://openghz.github.io/servopy/solvers/) · [C++](https://openghz.github.io/servopy/cpp/) |
+| 接入与分析 | [设备和调度](https://openghz.github.io/servopy/runtime/) · [记录与回放](https://openghz.github.io/servopy/recording/) |
+| 查询接口 | [API](https://openghz.github.io/servopy/api/) · [配置](https://openghz.github.io/servopy/configuration/) · [排障](https://openghz.github.io/servopy/troubleshooting/) |
 
-[浏览全部文档 →](docs/index.md)
+[浏览全部文档 →](https://openghz.github.io/servopy/)
 
 ## 项目状态
 
-源码版本 **0.3.0** 已在 **Linux x86_64 / Python 3.12** 验证，包含 178 项 Python 测试、独立 C++ 测试和 Panda 三种控制模式的动力学仿真。条件和结果保存在[验证记录](docs/validation.md)中。
+源码版本 **0.3.0** 已在 **Linux x86_64 / Python 3.12** 验证，包含 178 项 Python 测试、独立 C++ 测试和 Panda 三种控制模式的动力学仿真。条件和结果保存在[验证记录](https://openghz.github.io/servopy/validation/)中。
 
-ServoPy 负责生成参考；反馈获取、执行器命令和设备停止由应用负责。目前尚未完成真机验证、几何碰撞检查或硬实时执行验证，Panda 位控演示保留重力导致的跟踪偏差。完整能力边界见[路线图](docs/roadmap.md)。
+ServoPy 负责生成参考；反馈获取、执行器命令和设备停止由应用负责。目前尚未完成真机验证、几何碰撞检查或硬实时执行验证，Panda 位控演示保留重力导致的跟踪偏差。完整能力边界见[路线图](https://openghz.github.io/servopy/roadmap/)。
 
 ## 参与贡献
 

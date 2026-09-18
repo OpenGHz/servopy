@@ -1,4 +1,5 @@
 site_name: ServoPy
+site_url: https://openghz.github.io/servopy/
 site_description: 独立于 ROS 的 C++ / Python 在线伺服，从入门到设备接入
 repo_url: https://github.com/OpenGHz/servopy
 repo_name: OpenGHz/servopy

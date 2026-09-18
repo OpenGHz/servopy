@@ -64,6 +64,16 @@ def check_links(pages: dict[Path, str], errors: list[str]) -> int:
             repo_match = REPO_PATH.match(url.path) if url.netloc == "github.com" else None
             if repo_match:
                 destination = ROOT / unquote(repo_match.group(1))
+            elif url.hostname == "openghz.github.io" and url.path.startswith("/servopy/"):
+                # Validate our published links against the source checkout so a
+                # README link cannot silently break when a page is renamed.
+                route = unquote(url.path.removeprefix("/servopy/"))
+                destination = ROOT / "docs" / route
+                if not route:
+                    destination /= "index.md"
+                elif not destination.suffix:
+                    page = destination.with_suffix(".md")
+                    destination = page if page.is_file() else destination / "index.md"
             elif url.scheme or url.netloc:
                 continue
             else:

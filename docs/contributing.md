@@ -47,11 +47,17 @@ python -m mkdocs build --strict
 python -m mkdocs serve
 ```
 
-打开 serve 输出的本地地址，检查导航、搜索与代码复制。静态输出在 `site/`，不提交构建产物。本仓库只配置本地构建与文档检查，没有声明一个已经部署的公开文档站。
+打开 serve 输出的本地地址，检查导航、搜索与代码复制。静态输出在 `site/`，不提交构建产物。公开文档站发布在 [openghz.github.io/servopy](https://openghz.github.io/servopy/)。
 
 检查脚本会核对 Markdown 本地路径/锚点、公共 API、配置默认值、flags 与 CLI 参数，并可执行明确标注的完整 Python 示例。它不启动真实设备、不自动执行文档中的任意 shell 命令，也不把接入片段当作完整程序。
 
-[Documentation 工作流](https://github.com/OpenGHz/servopy/blob/main/.github/workflows/docs.yml) 在 PR 和 main 推送时执行示例检查与严格构建，使用 Linux / Python 3.12；也可在 Actions 手动触发。该工作流不发布站点。
+[Documentation 工作流](https://github.com/OpenGHz/servopy/blob/main/.github/workflows/docs.yml) 在 PR 和 `main` 推送时执行示例检查与严格构建，使用 Linux / Python 3.12。`main` 上的检查通过后，工作流上传 `site/` 产物并通过 `github-pages` 环境部署到 GitHub Pages；PR 与从其他分支手动触发的运行只检查，不发布。也可在 Actions 中选择 Documentation → Run workflow，并使用 `main` 手动重新发布。
+
+### GitHub Pages 发布维护
+
+仓库 Settings → Pages → Build and deployment 的 Source 使用 **GitHub Actions**。站点根地址由 `mkdocs.yml` 的 `site_url` 定义；更改账号或仓库名后，同时更新 README 和 `pyproject.toml` 中的文档地址。
+
+发布权限仅授予 `deploy` job（`pages: write` 与 `id-token: write`），构建 job 保持仓库只读。失败时先查看 [Documentation 的运行记录](https://github.com/OpenGHz/servopy/actions/workflows/docs.yml)：检查或构建失败会阻止发布；若 Configure GitHub Pages 提示找不到站点，确认已启用上述发布来源。修复后重新运行失败的 job 或再次推送 `main`。无需提交 `site/` 或维护 `gh-pages` 分支。
 
 ## 文档写法
 

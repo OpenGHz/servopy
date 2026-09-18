@@ -12,6 +12,11 @@ license = "MIT"
 license-files = ["LICENSE", "NOTICE", "LICENSES/*", "examples/assets/PANDA-LICENSE.txt"]
 dependencies = ["numpy>=1.23"]
 
+[project.urls]
+Documentation = "https://openghz.github.io/servopy/"
+Repository = "https://github.com/OpenGHz/servopy"
+Issues = "https://github.com/OpenGHz/servopy/issues"
+
 [project.optional-dependencies]
 pinocchio = ["pin>=3.0"]
 test = ["pytest>=7"]

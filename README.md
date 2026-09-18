@@ -17,7 +17,7 @@
 <p align="center">
   <a href="#quick-start">Quick start</a> &nbsp;·&nbsp;
   <a href="#panda-demo">Panda demo</a> &nbsp;·&nbsp;
-  <a href="#documentation">Documentation</a>
+  <a href="https://openghz.github.io/servopy/">Documentation</a>
 </p>
 
 ---
@@ -85,7 +85,7 @@ if result.action == Action.REJECT:
 print(result.action.name, result.reference.q)
 ```
 
-Expected output: `TRACK [ 0.50015 -0.99985]`. For execution timing and device-side stopping, read the [execution contract](docs/design.md).
+Expected output: `TRACK [ 0.50015 -0.99985]`. For execution timing and device-side stopping, read the [execution contract](https://openghz.github.io/servopy/design/).
 
 ## Panda demo
 
@@ -102,26 +102,28 @@ python examples/mujoco_panda.py --control-mode joint-position
 | `joint-position` | Joint target → joint reference → position actuator |
 | `ik-position` | Pose → position IK → joint reference → position actuator |
 
-The viewer runs an 18-second simulation. Press **Space** to pause, or add `--headless` to run without a display. Model assets are bundled with the source. The [Panda guide](docs/mujoco-panda.md) covers Ruckig smoothing, external targets, recording and measured tracking behavior.
+The viewer runs an 18-second simulation. Press **Space** to pause, or add `--headless` to run without a display. Model assets are bundled with the source. The [Panda guide](https://openghz.github.io/servopy/mujoco-panda/) covers Ruckig smoothing, external targets, recording and measured tracking behavior.
 
 ## Documentation
 
-**Guides and API reference are currently in Chinese.** The [design contract](docs/design.md) and [validation record](docs/validation.md) are in English; this README contains a complete English quick start.
+[Read the documentation online →](https://openghz.github.io/servopy/) — searchable guides, tutorials and API reference.
+
+**Guides and API reference are currently in Chinese.** The [design contract](https://openghz.github.io/servopy/design/) and [validation record](https://openghz.github.io/servopy/validation/) are in English; this README contains a complete English quick start.
 
 | Next step | Read |
 |---|---|
-| Write a controller | [Joint control](docs/joint-position.md) · [Position IK](docs/python-ik.md) |
-| Tune or extend it | [Smoothing](docs/smoothing.md) · [QP & nullspace](docs/solvers.md) · [C++](docs/cpp.md) |
-| Connect and inspect | [Devices & scheduling](docs/runtime.md) · [Recording & replay](docs/recording.md) |
-| Look up an interface | [API](docs/api.md) · [Configuration](docs/configuration.md) · [Troubleshooting](docs/troubleshooting.md) |
+| Write a controller | [Joint control](https://openghz.github.io/servopy/joint-position/) · [Position IK](https://openghz.github.io/servopy/python-ik/) |
+| Tune or extend it | [Smoothing](https://openghz.github.io/servopy/smoothing/) · [QP & nullspace](https://openghz.github.io/servopy/solvers/) · [C++](https://openghz.github.io/servopy/cpp/) |
+| Connect and inspect | [Devices & scheduling](https://openghz.github.io/servopy/runtime/) · [Recording & replay](https://openghz.github.io/servopy/recording/) |
+| Look up an interface | [API](https://openghz.github.io/servopy/api/) · [Configuration](https://openghz.github.io/servopy/configuration/) · [Troubleshooting](https://openghz.github.io/servopy/troubleshooting/) |
 
-[Browse all documentation →](docs/index.md)
+[Browse all documentation →](https://openghz.github.io/servopy/)
 
 ## Project status
 
-Source version **0.3.0** was validated on **Linux x86_64 / Python 3.12** with 178 Python tests, a standalone C++ test and Panda dynamics in all three control modes. Conditions and results are preserved in the [validation record](docs/validation.md).
+Source version **0.3.0** was validated on **Linux x86_64 / Python 3.12** with 178 Python tests, a standalone C++ test and Panda dynamics in all three control modes. Conditions and results are preserved in the [validation record](https://openghz.github.io/servopy/validation/).
 
-ServoPy generates references; the application owns feedback, actuator commands and device stopping. Physical-robot validation, geometric collision checking and hard real-time execution are outside the current verified scope. Position-mode Panda demos retain gravity-related tracking offsets. See the [roadmap](docs/roadmap.md) for capability boundaries.
+ServoPy generates references; the application owns feedback, actuator commands and device stopping. Physical-robot validation, geometric collision checking and hard real-time execution are outside the current verified scope. Position-mode Panda demos retain gravity-related tracking offsets. See the [roadmap](https://openghz.github.io/servopy/roadmap/) for capability boundaries.
 
 ## Contributing
 
