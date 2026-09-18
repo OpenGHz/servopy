@@ -81,6 +81,27 @@ Their feedback law uses position difference and the shortest SO(3) rotation
 logarithm, separate gains, active-axis selection and Cartesian speed caps.
 Reaching active-task tolerances requests braking before holding.
 
+JointPosition commands contain a finite target for every controlled joint,
+within effective limits including margins. Named Python commands must be a
+complete permutation; missing joints never default to zero. The native law
+uses joint_position_gain * difference(target, previous reference), then the
+same velocity, acceleration and sampled stopping constraints. Continuous joints
+use shortest angular error. A reference inside joint tolerance requests braking;
+GOAL_REACHED additionally requires measured position error inside tolerance.
+Neither that flag nor HOLD alone proves the physical device has stopped.
+Diagnostics expose target-to-measured joint_position_error separately from
+reference-to-measured tracking_error. No Cartesian speed cap, Jacobian
+singularity policy or jerk limit is applied in this joint branch.
+
+PositionIKAdapter is an explicit Python command preparation layer. It takes a
+PoseCommand and caller-selected seed, validates solver results against the
+Servo's effective limits, optional joint-step bounds and active-task FK residuals,
+and returns JointPositionCommand or StopCommand. It preserves source timestamps,
+never replays old successful results and reads no clock. The caller must invoke
+Servo.step even on failure and supply fresh time after solving. The adapter
+cannot interrupt a blocking solver or execute device stops; it does not replace
+the Pose/Twist differential solver in the core.
+
 Weighted task Jacobians use configurable selected rows. SVD implements damped
 least squares with factors s / (s² + lambda²). Damping increases smoothly as
 the smallest singular value drops. A small configuration probe along the

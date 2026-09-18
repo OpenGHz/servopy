@@ -27,13 +27,16 @@ class PyKinematics : public Kinematics {
 
 PYBIND11_MODULE(_core, m) {
   m.doc() = "ROS-independent servo kernel (C++17/Eigen)";
-  m.attr("__version__") = "0.1.0";
+  m.attr("__version__") = "0.2.0";
+  m.def("valid_pose", &valid_pose);
+  m.def("rotation_log", &rotation_log);
   py::enum_<JointType>(m, "JointType")
     .value("FIXED", JointType::FIXED).value("REVOLUTE", JointType::REVOLUTE)
     .value("CONTINUOUS", JointType::CONTINUOUS).value("PRISMATIC", JointType::PRISMATIC);
   py::enum_<CommandType>(m, "CommandType")
     .value("JOINT_JOG", CommandType::JOINT_JOG).value("TWIST", CommandType::TWIST)
-    .value("POSE", CommandType::POSE).value("STOP", CommandType::STOP);
+    .value("POSE", CommandType::POSE).value("STOP", CommandType::STOP)
+    .value("JOINT_POSITION", CommandType::JOINT_POSITION);
   py::enum_<Frame>(m, "Frame").value("BASE", Frame::BASE).value("TOOL", Frame::TOOL);
   py::enum_<Action>(m, "Action").value("TRACK", Action::TRACK).value("BRAKE", Action::BRAKE)
     .value("HOLD", Action::HOLD).value("REJECT", Action::REJECT);
@@ -67,6 +70,7 @@ PYBIND11_MODULE(_core, m) {
 #define FIELD(name) config.def_readwrite(#name, &Config::name);
   FIELD(command_timeout) FIELD(state_timeout) FIELD(collision_timeout) FIELD(max_dt)
   FIELD(timing_tolerance) FIELD(max_tracking_error) FIELD(position_gain) FIELD(orientation_gain)
+  FIELD(joint_position_gain) FIELD(joint_position_tolerance)
   FIELD(max_linear_speed) FIELD(max_angular_speed) FIELD(position_tolerance) FIELD(orientation_tolerance)
   FIELD(min_damping) FIELD(max_damping) FIELD(damping_threshold)
   FIELD(singularity_soft) FIELD(singularity_hard) FIELD(singularity_probe_step) FIELD(singularity_escape_epsilon)
@@ -77,6 +81,7 @@ PYBIND11_MODULE(_core, m) {
   py::class_<Command>(m, "Command").def(py::init<>())
     .def_readwrite("type", &Command::type).def_readwrite("frame", &Command::frame)
     .def_readwrite("joint_velocity", &Command::joint_velocity)
+    .def_readwrite("joint_position", &Command::joint_position)
     .def_readwrite("linear", &Command::linear).def_readwrite("angular", &Command::angular)
     .def_readwrite("pose", &Command::pose).def_readwrite("stamp_ns", &Command::stamp_ns)
     .def_readwrite("valid", &Command::valid);
@@ -92,6 +97,7 @@ PYBIND11_MODULE(_core, m) {
 #define READ(name) diagnostics.def_readonly(#name, &Diagnostics::name);
   READ(sigma_min) READ(damping) READ(singularity_scale) READ(velocity_scale)
   READ(collision_scale) READ(tracking_error) READ(position_error) READ(orientation_error)
+  READ(joint_position_error)
 #undef READ
   py::class_<Result>(m, "Result")
     .def_readonly("action", &Result::action).def_readonly("reference", &Result::reference)

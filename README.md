@@ -1,9 +1,9 @@
 # servo-py
 
 独立于 ROS/MoveIt 的在线 Servo 包，使用 C++17/Eigen 计算，提供 Python API。
-当前版本：`0.1.0`。基础 Python 运行依赖只有 NumPy。
+当前版本：`0.2.0`。基础 Python 运行依赖只有 NumPy。
 
-已实现 JointJog、Twist、Pose、阻尼微分 IK、奇异性减速/离开策略、关节速度与加速度约束、考虑采样制动距离的位置限制、超时停止和故障锁存。附带原生串联运动学、URDF 加载和可选 Pinocchio 后端。
+已实现 JointJog、JointPosition、Twist、Pose、阻尼微分 IK、奇异性减速/离开策略、关节速度与加速度约束、考虑采样制动距离的位置限制、超时停止和故障锁存。附带原生串联运动学、URDF 加载、可选 Pinocchio 后端与外部位置 IK 适配器。
 
 这是初版参考实现，尚未真机验证。它对生成的参考施加约束；实际机器人制动、通信超时和轨迹缓冲取消由设备控制器负责。碰撞功能目前接受外部检查结果，不包含几何碰撞检测器。
 
@@ -19,10 +19,14 @@ python examples/track_pose.py
 源码构建需要 C++17 编译器；pip 会在隔离构建环境中安装构建依赖。可用的 Python wheel 可以直接安装，无需编译器：
 
 ```bash
-python -m pip install ./servo_py-0.1.0-cp312-cp312-linux_x86_64.whl
+python -m pip install ./servo_py-0.2.0-cp312-cp312-linux_x86_64.whl
 ```
 
-随交付提供的 wheel 仅对应 CPython 3.12、Linux x86_64，在 Ubuntu 24.04/glibc 2.39 环境构建，未经 manylinux 修复；其他平台或较老系统请从源码构建。项目声明支持 Python 3.10+，当前实际验证环境为 Python 3.12。
+本地构建的 wheel 仅对应 CPython 3.12、Linux x86_64，在 Ubuntu 24.04/glibc 2.39 环境构建，未经 manylinux 修复；其他平台或较老系统请从源码构建。项目声明支持 Python 3.10+，当前实际验证环境为 Python 3.12。`0.2.0` 增加了 C++ 指令与绑定，更新源码后需重新安装，旧版 wheel 不提供新接口：
+
+```bash
+CMAKE_BUILD_PARALLEL_LEVEL=2 python -m pip install --upgrade '.[mujoco]'
+```
 
 **Panda + MuJoCo 仿真**
 
@@ -43,7 +47,7 @@ python examples/mujoco_panda.py --control-mode joint-position
 python examples/mujoco_panda.py --control-mode ik-position
 ```
 
-示例以 100 Hz 调用 Servo，使用 MuJoCo 的关节位置和速度反馈，以 500 Hz 插值参考并推进物理。默认 `--control-mode torque` 使用力矩控制，末端保持朝向、跟踪空间八字轨迹；`joint-position` 直接跟踪关节轨迹，`ik-position` 先用 Python 位置 IK 求解同一八字位姿轨迹，再进行关节位控。两种位控均通过 `JointJogCommand` 使用 Servo 的关节约束，将关节角写入模型原有位置执行器的 `ctrl`，最后发送停止命令。
+示例以 100 Hz 调用 Servo，使用 MuJoCo 的关节位置和速度反馈，以 500 Hz 插值参考并推进物理。默认 `--control-mode torque` 使用力矩控制，末端保持朝向、跟踪空间八字轨迹；`joint-position` 直接跟踪关节轨迹，`ik-position` 先用 Python 位置 IK 求解同一八字位姿轨迹，再进行关节位控。两种位控均通过原生 `JointPositionCommand` 使用 Servo 的关节约束，将关节角写入模型原有位置执行器的 `ctrl`，最后发送停止命令。
 
 橙色为目标路径，青色为实际末端轨迹。上方动画仍对应默认力矩模式。位控保留模型原始 PD 增益，未添加重力补偿，因此会有静态误差。模式区别、实测指标和替换自己的 Python IK 见 [示例文档](docs/mujoco-panda.md#三种控制模式)。
 
@@ -54,7 +58,7 @@ MUJOCO_GL=egl python examples/mujoco_panda.py --headless \
   --record panda-servo.mp4 --metrics panda-servo.json
 ```
 
-MuJoCo 是可选依赖；基础包仍仅依赖 NumPy。三个模式均未启用 Servo 的外部碰撞监控；两种 JointJog 位控模式不执行内置笛卡尔限速或奇异性减速。macOS 的 viewer 请使用 `mjpython examples/mujoco_panda.py`，同样支持 `--control-mode`。
+MuJoCo 是可选依赖；基础包仍仅依赖 NumPy。三个模式均未启用 Servo 的外部碰撞监控；两种关节位控模式不执行内置笛卡尔限速或奇异性减速。macOS 的 viewer 请使用 `mjpython examples/mujoco_panda.py`，同样支持 `--control-mode`。
 
 **最小示例**
 
@@ -91,12 +95,16 @@ print(result.reference.q, result.reference.dq, result.flags)
 **其他命令与状态**
 
 ```python
-from servo_py import JointJogCommand, PoseCommand, StopCommand
+from servo_py import JointJogCommand, JointPositionCommand, PoseCommand, StopCommand
 
 jog = JointJogCommand(velocities=[0.1], names=["elbow"], stamp_ns=now_ns)
+# 必须包含所有受控关节，顺序与 model.joint_names() 一致。
+joint_position = JointPositionCommand(positions=target_joint_angles, stamp_ns=now_ns)
 pose = PoseCommand(pose=target_transform_4x4, stamp_ns=now_ns)
 stop = StopCommand()
 ```
+
+`JointPositionCommand` 直接接收关节目标，由 C++ 使用 `joint_position_gain` 和 `joint_position_tolerance` 生成受约束参考，支持连续关节最短角差。带名称的指令必须覆盖全部关节；无效或越出 margin 限位的目标会触发制动。它不调用 IK，也不限制末端速度。详细语义见 [关节位置控制](docs/joint-position.md)。
 
 | 返回动作 | 含义 |
 |---|---|
@@ -133,9 +141,9 @@ model = PinocchioModel.from_urdf(
 
 **接入已有的 Python IK**
 
-已有的位置 IK 可以在应用层转换为 `JointJogCommand`，继续使用 Servo 的关节约束和参考生成，无需修改 C++ 内核。完整接入步骤、示例代码、时间戳及故障处理见 [Python IK 接入教程](docs/python-ik.md)。
+`PositionIKAdapter(servo, solve_ik)` 可接入已有的 `solve_ik(target_pose, q_seed)`，输出经过限位、连续性和任务位姿残差校验的 `JointPositionCommand`；无解、异常或无效解返回 `StopCommand`。它保留原始目标时间戳，并使用当前 Servo 的有效限位。完整循环、时间戳和失败处理见 [Python IK 接入教程](docs/python-ik.md)。
 
-当前 `PoseCommand` / `TwistCommand` 使用内置微分 IK，尚未提供自定义 IK 求解器入口；JointJog 接法的笛卡尔限速、奇异性策略和路径边界在教程中单独说明。
+直接传给 `Servo.step()` 的 `PoseCommand` / `TwistCommand` 仍使用内置微分 IK。外部位置 IK 通过适配器走关节位置分支，不自动获得内置笛卡尔限速或奇异性减速；已有微分 IK 仍可输出 `JointJogCommand`。
 
 **构建和测试**
 
@@ -164,3 +172,5 @@ ctest --test-dir build-native --output-on-failure
 安装 C++ 库后，消费者可以通过 `find_package(servo_py CONFIG REQUIRED)` 和 `servo_py::core` 链接。
 
 数值和时序契约见 [docs/design.md](docs/design.md)，验证结果见 [docs/validation.md](docs/validation.md)。当前不包含设备驱动、周期线程、几何碰撞检查器、Ruckig/jerk 约束或 QP 求解器。该实现改变了 MoveIt Servo 的部分行为，未做逐步数值等价验证。
+
+已完成与待实现功能、建议顺序和验收条件见 [功能清单](docs/roadmap.md)。

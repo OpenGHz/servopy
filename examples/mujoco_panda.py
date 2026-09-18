@@ -27,7 +27,7 @@ except ImportError as exc:
     raise ImportError("Install the demo dependencies: python -m pip install '.[mujoco]'") from exc
 
 from servo_py import (
-    Action, JointJogCommand, JointLimits, JointState, Kinematics, PoseCommand,
+    Action, JointPositionCommand, JointLimits, JointState, Kinematics, PoseCommand, PositionIKAdapter,
     SafetyFlag, Servo, ServoConfig, StopCommand,
 )
 
@@ -231,7 +231,10 @@ class PandaSimulation:
         self.arm_actuators = np.array([self.model.actuator(f"actuator{i}").id for i in range(1, 8)])
         self.data.ctrl[self.model.actuator("actuator8").id] = 255
         mujoco.mj_forward(self.model, self.data)
-        self.servo = Servo(self.backend, ServoConfig(position_gain=10.0, orientation_gain=10.0, max_linear_speed=0.25))
+        self.servo = Servo(self.backend, ServoConfig(
+            position_gain=10.0, orientation_gain=10.0, max_linear_speed=0.25,
+            joint_position_gain=10.0, joint_position_tolerance=1e-5,
+        ))
         self.home_q = self.data.qpos[self.backend.q_ids].copy()
         self.home_pose = self.backend.fk(self.home_q)
         self.target = self.home_pose.copy()
@@ -242,8 +245,11 @@ class PandaSimulation:
         self.kp = np.array([600, 600, 500, 500, 250, 200, 150])
         self.kd = np.array([50, 50, 40, 40, 20, 20, 12])
         self.joint_target = None
-        self.joint_gain = 10.0  # 1/s; separate from Servo's Cartesian position_gain.
         self.ik_solver = (PandaPositionIK(self.backend) if ik_solver is None else ik_solver) if control_mode == "ik-position" else None
+        self.ik_adapter = PositionIKAdapter(
+            self.servo, lambda target, seed: self.ik_solver(target, seed), max_joint_step=0.35,
+            position_tolerance=1e-4, orientation_tolerance=1e-3,
+        ) if control_mode == "ik-position" else None
         self.ik_failures = 0
         self.last_ik_error = None
         self.tick = 0
@@ -271,29 +277,15 @@ class PandaSimulation:
             return PoseCommand(self.target, now_ns)
         if self.control_mode == "joint-position":
             self.joint_target = checked_joint_target(self.backend, target_joints(self.home_q, self.time, self.duration))
+            return JointPositionCommand(self.joint_target, now_ns)
+        prepared = self.ik_adapter.solve(PoseCommand(self.target, now_ns), self.q_reference, now_ns=now_ns)
+        if not prepared.success:
+            self.joint_target = None
+            self.ik_failures += 1
+            self.last_ik_error = prepared.message
         else:
-            try:
-                q = self.ik_solver(self.target.copy(), self.q_reference.copy())
-                if q is None:
-                    raise ValueError("IK did not converge")
-                q = checked_joint_target(self.backend, q)
-                if np.max(np.abs(q - self.q_reference)) > 0.35:
-                    raise ValueError("IK solution is too far from the reference seed (0.35 rad)")
-                error = pose_error(self.target, self.backend.fk(q))
-                if np.linalg.norm(error[:3]) > 1e-4 or np.linalg.norm(error[3:]) > 1e-3:
-                    raise ValueError("IK solution failed the TCP pose residual check")
-            except Exception as exc:
-                # Continue physics with Servo's braking/holding reference; never
-                # execute an invalid solution or keep requesting an old target.
-                self.joint_target = None
-                self.ik_failures += 1
-                self.last_ik_error = f"{type(exc).__name__}: {exc}"
-                return StopCommand()
-            self.joint_target = q
-        error = self.backend.difference(self.joint_target, self.q_reference)
-        if np.max(np.abs(error)) <= 1e-5:
-            return StopCommand()
-        return JointJogCommand(self.joint_gain * error, now_ns)
+            self.joint_target = prepared.command.positions.copy()
+        return prepared.command
 
     def step(self):
         now_ns = self.tick * 10_000_000  # Simulation time, independent of rendering/wall time.

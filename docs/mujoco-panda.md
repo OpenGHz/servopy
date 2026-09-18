@@ -55,10 +55,10 @@ python examples/mujoco_panda.py --control-mode ik-position
 | 模式 | 目标与 Servo 链路 | MuJoCo 执行器输入 |
 |---|---|---|
 | `torque` | 八字 TCP 位姿 → `PoseCommand` → 内置微分 IK → 关节参考 | PD 与偏置补偿计算的力矩，单位 Nm |
-| `joint-position` | `target_joints()` → 关节误差转速度 → `JointJogCommand` → 关节参考 | 模型原有位置执行器，目标角度单位 rad |
-| `ik-position` | 八字 TCP 位姿 → `PandaPositionIK` → 关节误差转速度 → `JointJogCommand` → 关节参考 | 与直接关节模式相同的位置执行器 |
+| `joint-position` | `target_joints()` → `JointPositionCommand` → 关节参考 | 模型原有位置执行器，目标角度单位 rad |
+| `ik-position` | 八字 TCP 位姿 → `PandaPositionIK` + `PositionIKAdapter` → `JointPositionCommand` → 关节参考 | 与直接关节模式相同的位置执行器 |
 
-两个位控模式的应用层使用 `dq_target = 10 * (q_target - q_reference)`，其中 `q_reference` 是上一周期接受的参考位置；它与真实反馈分别保存。Servo 继续检查真实反馈并生成受位置、速度和加速度约束的参考，再以 500 Hz 插值写入执行器 `data.ctrl`。这里的 `JointJogCommand` 是包内部用于参考生成的速度目标，下游实际发送给 MuJoCo 的仍然是关节位置。不会直接修改物理状态 `qpos/qvel`。
+从 `0.2.0` 开始，两个位控模式直接发送原生 `JointPositionCommand`，C++ 使用 `joint_position_gain=10`、`joint_position_tolerance=1e-5` 跟踪目标；应用层不再自行转为 JointJog。内部位置反馈律仍以连续参考为基准，与真实反馈分别保存。Servo 检查真实反馈并生成受位置、速度和加速度约束的参考，再以 500 Hz 插值写入执行器 `data.ctrl`。不会直接修改物理状态 `qpos/qvel`。更新源码后须重新安装 `.[mujoco]`，以加载新版 C++ 绑定。
 
 `joint-position` 的示范目标由七个关节的平滑周期函数给出，运动后回到初始角度。替换 `target_joints(home_q, t, duration)` 即可输入自己的关节目标，顺序是 `joint1` 到 `joint7`，单位 rad，并须处于含 margin 的 Servo 限位内。此模式只为显示目标路径与计算 TCP 误差调用 FK，不调用 IK/Jacobian；目标 TCP 朝向随关节运动变化，路径也不同于另两个模式的八字轨迹。
 
@@ -85,11 +85,11 @@ print(simulation.summary())
 
 要继续使用示例的 viewer/录制循环，可在 `main()` 构造 `PandaSimulation(...)` 时传入同一个 `ik_solver=solve_ik`，或将 `PandaPositionIK.__call__()` 替换为自己的求解调用。
 
-外部解还会经过有限值、七关节维度、margin 限位、与初值最大角差 `0.35 rad`、FK 位置残差 `1e-4 m` 和朝向残差 `1e-3 rad` 检查。无解、求解异常或校验失败会发送 `StopCommand`，继续执行 Servo 的制动/保持参考，并增加 `ik_failures`、记录 `last_ik_error`；下一周期会重试新目标。`0.35 rad` 是本示例的连续性阈值，不是通用 IK 分支识别算法。若 Servo 返回 `REJECT`，仿真会终止，位置执行器不会收到全零关节角目标。
+外部解由包级 `PositionIKAdapter` 检查有限值、七关节维度、Servo 有效 margin 限位、与初值最大角差 `0.35 rad`、FK 位置残差 `1e-4 m` 和朝向残差 `1e-3 rad`。无解、求解异常或校验失败会发送 `StopCommand`，继续执行 Servo 的制动/保持参考，并增加 `ik_failures`、记录 `last_ik_error`；下一周期会重试新目标。`0.35 rad` 是本示例的连续性阈值，不是通用 IK 分支识别算法。若 Servo 返回 `REJECT`，仿真会终止，位置执行器不会收到全零关节角目标。
 
 建议先使用默认 18 秒时长。把整条轨迹压缩到 6 秒等较短时间，可能让目标远超当前可执行参考，触发上述角差阈值并保持制动；此时仿真完成或最终 `HOLD` 不代表成功跟踪，应同时查看 `ik_failures` 与 TCP 误差。
 
-这两个位控模式走 JointJog 分支，保留关节约束、反馈/指令检查和跟踪误差保护，但不执行内置的笛卡尔限速或 Jacobian 奇异性减速；IK 自身的阻尼不等同于这些 Servo 策略。接口细节、耗时与目标有效期约定见 [Python IK 教程](python-ik.md)。
+这两个位控模式走 JointPosition 分支，保留关节约束、反馈/指令检查和跟踪误差保护，但不执行内置的笛卡尔限速或 Jacobian 奇异性减速；IK 自身的阻尼不等同于这些 Servo 策略。接口细节、耗时与目标有效期约定见 [Python IK 教程](python-ik.md)。
 
 ## 控制链路
 

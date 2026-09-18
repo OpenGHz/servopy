@@ -16,7 +16,7 @@ using Pose = Eigen::Matrix4d;
 using Vector6 = Eigen::Matrix<double, 6, 1>;
 
 enum class JointType { FIXED, REVOLUTE, CONTINUOUS, PRISMATIC };
-enum class CommandType { JOINT_JOG, TWIST, POSE, STOP };
+enum class CommandType { JOINT_JOG, TWIST, POSE, STOP, JOINT_POSITION };
 enum class Frame { BASE, TOOL };
 enum class Action { TRACK, BRAKE, HOLD, REJECT };
 enum Flag : std::uint64_t {
@@ -101,6 +101,8 @@ struct Config {
   double max_tracking_error = 0.2;  // max absolute joint error, rad or m
   double position_gain = 2.0;
   double orientation_gain = 2.0;
+  double joint_position_gain = 2.0;
+  double joint_position_tolerance = 1e-4;  // rad or m, applied per joint
   double max_linear_speed = 0.2;
   double max_angular_speed = 0.5;
   double position_tolerance = 1e-4;
@@ -127,6 +129,7 @@ struct Command {
   CommandType type = CommandType::STOP;
   Frame frame = Frame::BASE;
   Vector joint_velocity;
+  Vector joint_position;
   Eigen::Vector3d linear = Eigen::Vector3d::Zero();
   Eigen::Vector3d angular = Eigen::Vector3d::Zero();
   Pose pose = Pose::Identity();
@@ -154,6 +157,7 @@ struct Diagnostics {
   double tracking_error = 0.0;
   double position_error = 0.0;
   double orientation_error = 0.0;
+  double joint_position_error = 0.0;  // target versus measured joints, max norm
 };
 
 struct Result {

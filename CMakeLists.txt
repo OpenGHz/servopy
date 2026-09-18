@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(servo_py VERSION 0.1.0 LANGUAGES CXX)
+project(servo_py VERSION 0.2.0 LANGUAGES CXX)
 
 option(SERVO_PY_BUILD_PYTHON "Build the Python extension" ON)
 option(SERVO_PY_BUILD_TESTS "Build standalone C++ smoke test" OFF)

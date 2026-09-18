@@ -1,20 +1,70 @@
 # 接入已有的 Python IK
 
-适用于 servo-py `0.1.0`。如果已经有 Python 编写的逆运动学（IK），可以保留原求解器，在应用层把结果转换成 `JointJogCommand`。这条接法无需修改或重新编译 C++ 内核。
+适用于 servo-py `0.2.0`。已有 Python 位置 IK 可直接接入 `PositionIKAdapter`，由它校验并生成 `JointPositionCommand`。从 `0.1.0` 升级时先重新安装项目，以获得新版 C++ 绑定；之后更换自己的 Python 求解器不需要修改或重新编译内核。本文后半部分也保留旧版 JointJog 接法。
 
 ## 当前接口与接入位置
 
-当前 `PoseCommand`、`TwistCommand` 使用 C++ 内置的阻尼微分 IK，`Servo` 尚未提供 `ik_solver=` 等自定义求解器参数。`Kinematics` 是模型接口，用于提供 FK、Jacobian 和关节坐标运算；仅继承它并添加 `solve()`，不会让 Servo 调用这个 IK。
+直接传给 `Servo.step()` 的 `PoseCommand`、`TwistCommand` 使用 C++ 内置的阻尼微分 IK。外部位置 IK 使用 `PositionIKAdapter(servo, solve_ik)` 准备关节位置指令；`Servo` 本身没有 `ik_solver=` 构造参数。`Kinematics` 提供 FK、Jacobian 和关节坐标运算，仅继承它并添加 `solve()` 不会自动接管 IK。
 
 | 已有接口 | 当前版本的接法 |
 |---|---|
-| 位姿 IK：`solve(target_pose, q_seed) -> q_target` | 把目标关节角转换成期望关节速度，再发送 `JointJogCommand` |
+| 位姿 IK：`solve(target_pose, q_seed) -> q_target` | 推荐 `PositionIKAdapter` → `JointPositionCommand`；旧版可使用 JointJog |
 | 微分 IK：输出关节速度 `dq_target` | 校验后直接发送 `JointJogCommand` |
 | Python FK / Jacobian | 实现 `Kinematics` 后端，继续使用 Servo 内置的微分 IK |
 
-下面以第一种情况为例。应用层负责调用自己的 IK 和关节位置反馈律，Servo 负责生成满足关节约束的短周期参考，下游控制器负责执行。
+下面以第一种情况为例。应用层调用自己的 IK，`0.2.0` 的 C++ 关节位置分支负责位置反馈律和满足关节约束的短周期参考，下游控制器负责执行。
 
-可直接运行的例子见 [Panda / MuJoCo 示例](mujoco-panda.md#三种控制模式)：`python examples/mujoco_panda.py --control-mode ik-position` 会打开 viewer，用 Python 位姿 IK 求解后通过 JointJog 生成参考，再发送给 Panda 位置执行器。`PandaSimulation(control_mode="ik-position", ik_solver=solve_ik)` 支持传入已有求解器；`--control-mode joint-position` 则跳过 IK，直接跟踪关节目标。
+可直接运行的例子见 [Panda / MuJoCo 示例](mujoco-panda.md#三种控制模式)：`python examples/mujoco_panda.py --control-mode ik-position` 会打开 viewer，用 Python 位姿 IK 求解后通过原生关节位置指令生成参考，再发送给 Panda 位置执行器。`PandaSimulation(control_mode="ik-position", ik_solver=solve_ik)` 支持传入已有求解器；`--control-mode joint-position` 则跳过 IK，直接跟踪关节目标。
+
+## 推荐接法：PositionIKAdapter
+
+先创建正常的 `Servo`，再传入自己的求解函数。下面的模型、目标和 `your_ik` 应替换为应用自己的实现：
+
+```python
+import time
+from servo_py import Action, PoseCommand, PositionIKAdapter, Servo, ServoConfig
+
+servo = Servo(model, ServoConfig(joint_position_gain=2.0))
+adapter = PositionIKAdapter(
+    servo,
+    lambda target, seed: your_ik.solve(target, seed),
+    max_joint_step=0.35,       # 可选；转动关节用 rad，移动关节用 m。
+    position_tolerance=1e-4,
+    orientation_tolerance=1e-3,
+)
+previous_reference = None
+
+# 以下是调用方周期循环中的一次执行。
+try:
+    state = controller.read_joint_state()
+    seed = state.q if previous_reference is None else previous_reference.q
+    prepared = adapter.solve(
+        PoseCommand(target_pose, target_stamp_ns), seed,
+        now_ns=time.monotonic_ns(),
+    )
+    # 即使 prepared.success 为 False，也要执行 StopCommand 以持续制动。
+    result = servo.step(
+        state, prepared.command, dt=0.01,
+        now_ns=time.monotonic_ns(),  # IK 结束后重新采样，保留实际耗时。
+    )
+    if result.action == Action.REJECT:
+        raise RuntimeError(result.message)
+    controller.send_reference(result.reference)
+    previous_reference = result.reference
+except Exception:
+    controller.stop_and_clear_queue()
+    raise
+```
+
+`controller` 是应用自行实现的设备适配层；周期调度同样由调用方负责。`target_stamp_ns` 是上游目标的原始时间戳，与真实反馈和 `now_ns` 使用同一单调时钟。持续读取旧目标时不能刷新其时间戳。固定目标应由上层任务明确管理其持续有效、取消与更新。
+
+`PositionIKResult` 提供 `success`、`command`、`message`、`position_error` 和 `orientation_error`。成功时 `command` 是完整的 `JointPositionCommand`；无解、异常或验证失败时为 `StopCommand`，且不会返回上次成功的解。两个误差字段是解的 FK 与目标在 `ServoConfig.task_axes` 上的残差，仅在完成残差计算时有数值，不是实际设备反馈误差。
+
+适配器检查目标的时间戳/有效期/基坐标系/刚体变换、种子维度与有限值、解的维度/有限值/限位、可选的逐关节最大角差以及任务位姿残差。限位来自 `servo.limits`，包括构造 Servo 时传入的覆盖值和 margin。`max_joint_step` 可设为正标量或每关节向量；默认 `None`，不检查与初值的变化量。该阈值是局部连续性检查，不保证 IK 分支全局连续。
+
+位姿残差默认使用 Servo 的位置、姿态容差，可通过适配器参数覆盖；只检查启用的任务轴。角差使用模型的 `difference()`，因此连续关节采用最短角差。传给求解器的是独立的目标和种子副本，修改它们不会影响原始输入。
+
+成功指令保留原始 PoseCommand 的时间戳。适配器不读取时钟、不持有 Servo 参考、不启动线程，也不能中断阻塞的 Python 求解器。真实控制中务必在求解后以新鲜时间调用 `Servo.step()`；若超出命令、状态或调度预算，它会按现有契约制动或拒绝。设备侧仍需要断流停止机制。
 
 ## 接入前对齐数据约定
 
@@ -46,7 +96,9 @@ servo = Servo(model)
 
 接入自己的机械臂时，替换 URDF、base、tip 和加速度参数。默认 `ServoConfig.task_axes` 有六个分量；如果模型少于六个自由度，仍需为当前配置校验设置合适的 `task_axes`，例如二维示例使用 `ServoConfig(task_axes=(0, 1))`。这项设置不会使 JointJog 启用笛卡尔求解。
 
-## 将位姿 IK 转换成 JointJog
+## 兼容旧版：将位姿 IK 转换成 JointJog
+
+下面的应用层包装仍可用于 `0.1.0`；`0.2.0` 新项目推荐上面的适配器，避免重复实现限位、残差和失败检查。
 
 先把自己的 IK 包装成以下接口：
 
@@ -171,20 +223,20 @@ except Exception:
 - **求解预算**：同步 Python IK 的耗时属于整个周期预算。例如 100 Hz 周期只有 10 ms，还需容纳反馈读取、Servo 计算和驱动通信。超时检测发生在 `step()` 被调用之后，无法中断一个正在阻塞的 IK 调用。
 - **较慢的 IK**：可以在较低频率的任务中求解，让 Servo 周期消费最新有效结果。应保留结果的请求时间、目标版本和有效期，丢弃迟到或被新目标取代的结果；不能每次消费都刷新同一份旧结果的时间戳。设备侧仍需处理控制进程断流。
 
-## JointJog 路径的功能边界
+## 外部 IK 关节指令路径的功能边界
 
-| 能力 | 外部 IK → JointJog |
+| 能力 | 外部 IK → JointPosition / JointJog |
 |---|---|
 | 关节速度、加速度、位置约束 | 保留，作用于生成的参考 |
 | 指令/反馈超时、跟踪误差、故障锁存 | 保留 |
 | 外部碰撞结果 | 可通过 `collision` 传入；启用时仍需检查结果及其源状态的时间戳 |
-| 笛卡尔线速度/角速度限制 | JointJog 分支不执行，需在外部设计 |
+| 笛卡尔线速度/角速度限制 | 两种关节分支均不执行，需在外部设计 |
 | 内置 Jacobian 奇异性减速/离开策略 | 仅在内置 Pose/Twist 求解分支执行 |
 | 末端路径形状 | 关节空间跟踪不保证末端走直线，也不保证中间路径无碰撞 |
 
 如果现有求解器已经输出 `dq_target`，直接构造 `JointJogCommand`，不用再乘位置误差增益；仍需对齐关节顺序、单位、结果有效期，并处理上述输出状态。
 
-若希望自己的 IK 直接接管 `PoseCommand` / `TwistCommand` 的求解，需要进一步增加独立求解器接口，并约定位置 IK 与微分 IK 的不同输入输出、失败处理及奇异性策略。这是后续扩展，当前版本尚未实现。
+若希望自己的微分 IK 直接接管内核 `PoseCommand` / `TwistCommand` 的求解，同时复用内置笛卡尔约束和奇异性策略，还需要独立的内核求解器接口。当前的位置 IK 适配器不接管该分支，剩余工作见 [功能清单](roadmap.md)。
 
 如需提供 Python FK / Jacobian，可参考 [Pinocchio 后端](../src/servo_py/backends/pinocchio.py)。该接口要求 FK 为 base→TCP 的 `4 × 4` 变换，Jacobian 为 `6 × n`，前三行是 TCP 线速度、后三行是角速度，均用 base 坐标轴表达。
 

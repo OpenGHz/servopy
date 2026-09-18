@@ -27,5 +27,21 @@ int main() {
     state = {ref.q, ref.dq, ref.stamp_ns};
   }
   if (std::abs(state.dq[0]) > 1e-10) throw std::runtime_error("stop did not finish");
+  Result position_result;
+  for (int k = 100; k < 800; ++k) {
+    Command position;
+    position.type = CommandType::JOINT_POSITION;
+    position.joint_position = Vector::Constant(1, .45);
+    position.stamp_ns = k * 10000000LL;
+    position_result = servo.step(state, position, .01, position.stamp_ns);
+    if (!position_result.reference) throw std::runtime_error(position_result.message);
+    const auto& ref = *position_result.reference;
+    if (std::abs(ref.ddq[0]) > 2.000000001 || std::abs(ref.dq[0]) > 1.000000001)
+      throw std::runtime_error("joint position limits failed");
+    state = {ref.q, ref.dq, ref.stamp_ns};
+  }
+  if (position_result.action != Action::HOLD || !(position_result.flags & GOAL_REACHED) ||
+      std::abs(state.q[0] - .45) > 1.1e-4)
+    throw std::runtime_error("joint position target did not converge");
   std::cout << "Standalone C++ servo: PASS\n";
 }

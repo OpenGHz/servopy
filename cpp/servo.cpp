@@ -99,6 +99,7 @@ bool feasible_velocity_interval(double q, double v0, int i, const Limits& limits
 void Config::validate(int n) const {
   for (double value : {command_timeout, state_timeout, collision_timeout, max_dt,
                        max_tracking_error, position_gain, orientation_gain,
+                       joint_position_gain, joint_position_tolerance,
                        max_linear_speed, max_angular_speed, position_tolerance,
                        orientation_tolerance, min_damping, max_damping,
                        damping_threshold, singularity_soft, singularity_hard,
@@ -216,6 +217,28 @@ Result ServoCore::step(const State& state, const Command& command, double dt,
       if (command.joint_velocity.size() != n_ || !command.joint_velocity.allFinite()) {
         braking = true; result.flags |= INVALID_COMMAND;
       } else desired = command.joint_velocity;
+    } else if (!braking && command.type == CommandType::JOINT_POSITION) {
+      const Vector& target = command.joint_position;
+      if (target.size() != n_ || !target.allFinite() ||
+          (target.array() < limits_.lower.array() + limits_.margin.array()).any() ||
+          (target.array() > limits_.upper.array() - limits_.margin.array()).any()) {
+        braking = true; result.flags |= INVALID_COMMAND;
+      } else {
+        const Vector reference_error = model_->difference(target, reference_->q);
+        const Vector measured_error = model_->difference(target, state.q);
+        if (reference_error.size() != n_ || measured_error.size() != n_ ||
+            !reference_error.allFinite() || !measured_error.allFinite())
+          throw std::runtime_error("backend returned an invalid joint position difference");
+        result.diagnostics.joint_position_error = measured_error.cwiseAbs().maxCoeff();
+        if (reference_error.cwiseAbs().maxCoeff() <= config_.joint_position_tolerance) {
+          braking = true;
+          if (result.diagnostics.joint_position_error <= config_.joint_position_tolerance)
+            result.flags |= GOAL_REACHED;
+        } else {
+          desired = config_.joint_position_gain * reference_error;
+          if (!desired.allFinite()) { braking = true; result.flags |= INVALID_COMMAND; }
+        }
+      }
     } else if (!braking && (command.type == CommandType::TWIST || command.type == CommandType::POSE)) {
       const Pose current = model_->fk(state.q);
       if (!valid_pose(current)) throw std::runtime_error("backend FK is not a rigid transform");
@@ -298,8 +321,8 @@ Result ServoCore::step(const State& state, const Command& command, double dt,
       braking = true; result.flags |= INVALID_COMMAND;
     }
 
-    if (!desired.allFinite()) return reject(result, MODEL_ERROR, "nonfinite velocity from kinematic solve");
     if (braking) desired.setZero();
+    if (!desired.allFinite()) return reject(result, MODEL_ERROR, "nonfinite velocity from kinematic solve");
     double velocity_scale = 1.0;
     for (int i = 0; i < n_; ++i)
       if (std::abs(desired[i]) > limits_.velocity[i])

@@ -114,3 +114,28 @@ the default torque mode. A fresh interactive-viewer check could not be
 completed in this session because the virtual X server could not create
 its listening socket. The previous viewer check above is for torque mode;
 it is not claimed as a new position-mode desktop validation.
+
+## Version 0.2.0: native joint targets and reusable position IK
+
+Date: 2026-09-18. A new CPython 3.12 Linux wheel was built with GCC 13.3.0,
+Eigen 3.4.1 and pybind11 3.1.0, limiting build concurrency to two. The restored
+implementation was rebuilt and tested from the installed 0.2.0 wheel in a
+dedicated virtual environment with NumPy 2.3.5, MuJoCo 3.13.0 and Pinocchio
+4.1.0. All 128 Python tests passed. A separate Python-free C++ build and CTest
+passed; its smoke test now exercises JOINT_POSITION convergence as well as
+JointJog and braking.
+
+The 42 new tests cover position convergence/reversal under reference limits,
+invalid and stale targets, complete named mappings, collision scaling,
+continuous-joint wrapping, actual arrival versus reference HOLD, configuration
+validation, and position IK preparation. Adapter tests check source timestamp
+preservation and expiration after a delayed solve, suppression of stale/invalid
+requests, invalid solver outputs, custom Servo limits, input-copy isolation,
+exceptions without stale-result replay, active-task residuals and continuity
+bounds. The 14 Panda tests also pass after both position modes migrated to
+the native command and shared adapter; each control mode completes an 18-second
+dynamics run and ends in HOLD.
+
+No new interactive viewer or physical-robot verification is claimed. Existing
+position-actuator gravity offsets and the lack of jerk/geometric collision
+checking still apply. Pending capabilities are tracked in `roadmap.md`.

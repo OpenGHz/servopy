@@ -50,6 +50,8 @@ class ServoConfig:
     max_tracking_error: float = 0.2
     position_gain: float = 2.0
     orientation_gain: float = 2.0
+    joint_position_gain: float = 2.0
+    joint_position_tolerance: float = 1e-4
     max_linear_speed: float = 0.2
     max_angular_speed: float = 0.5
     position_tolerance: float = 1e-4
@@ -115,6 +117,18 @@ class JointJogCommand:
 
 
 @dataclass(frozen=True)
+class JointPositionCommand:
+    """Full joint target in model order or a complete named permutation.
+
+    Revolute/continuous joints use rad; prismatic joints use m. Named subsets
+    are rejected so omitted joints cannot acquire zero targets.
+    """
+    positions: ArrayLike
+    stamp_ns: int
+    names: Sequence[str] | None = None
+
+
+@dataclass(frozen=True)
 class TwistCommand:
     linear: ArrayLike
     angular: ArrayLike
@@ -162,11 +176,23 @@ class Servo:
         self.model = model
         self.config = config or ServoConfig()
         native_limits = limits._native() if limits is not None else model.limits
+        self._limits = JointLimits(**{
+            name: np.asarray(getattr(native_limits, name)).copy()
+            for name in ("lower", "upper", "velocity", "acceleration", "margin")
+        })
         self._core = _core.ServoCore(model, native_limits, self.config._native())
         self._names = tuple(model.joint_names())
         self._indices = {name: i for i, name in enumerate(self._names)}
         self._base = model.base_frame()
         self._tip = model.tip_frame()
+
+    @property
+    def limits(self) -> JointLimits:
+        """An independent copy of the effective limits used by this Servo."""
+        return JointLimits(**{
+            field.name: np.asarray(getattr(self._limits, field.name)).copy()
+            for field in fields(self._limits)
+        })
 
     def reset(self, state: JointState, *, now_ns: int):
         self._core.reset(state._native(), now_ns)
@@ -191,6 +217,17 @@ class Servo:
                         mapped[self._indices[name]] = value
                     values = mapped
                 result.joint_velocity = values
+            elif isinstance(command, JointPositionCommand):
+                result.type = _core.CommandType.JOINT_POSITION
+                values = np.asarray(command.positions, dtype=float)
+                if values.ndim != 1 or len(values) != len(self._names):
+                    raise ValueError("joint positions must contain every controlled joint")
+                if command.names is not None:
+                    if len(command.names) != len(self._names) or set(command.names) != set(self._names):
+                        raise ValueError("joint position names must be a complete unique permutation")
+                    positions = dict(zip(command.names, values))
+                    values = np.array([positions[name] for name in self._names])
+                result.joint_position = values
             elif isinstance(command, TwistCommand):
                 result.type = _core.CommandType.TWIST
                 result.linear = command.linear
