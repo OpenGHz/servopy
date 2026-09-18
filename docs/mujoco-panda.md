@@ -2,6 +2,8 @@
 
 **目标：** 通过真实动力学反馈比较三条控制路径，并学会查看跟踪结果。前置：安装 `.[mujoco]`。所有命令从仓库根目录执行。
 
+通过 PyPI 安装后，无需源码仓库：安装 `servo-py[mujoco]`，将本页 `python examples/mujoco_panda.py` 替换为 **`servo-py-panda`** 即可，参数完全相同。模型资产已包含在 wheel 中。首次上传状态见[安装指南](getting-started.md)。
+
 ## 先运行默认示例
 
 ```bash

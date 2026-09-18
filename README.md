@@ -47,7 +47,19 @@ NumPy is the only required third-party Python runtime dependency. Building from 
 
 ## Quick start
 
-You need **Python 3.10 or newer** and a **compiler supporting C++17 or newer**. C++17 is the minimum language standard. The commands below target the validated Linux environment; run them from a source checkout. See the [installation requirements](https://openghz.github.io/servopy/getting-started/#1-准备环境) for build dependencies and the tested environment.
+You need **Python 3.10 or newer**. The Linux release workflow builds wheels for CPython 3.10–3.14 on x86_64 and ARM64 (glibc 2.28+), including the examples and models. **The first PyPI upload is pending maintainer account setup**; see the [release guide](https://openghz.github.io/servopy/publishing/).
+
+Once the release is available, install in a virtual environment without a C++ compiler:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install --only-binary=:all: servo-py
+python -m servo_py.examples.track_pose
+```
+
+To run the current source checkout, you also need a **compiler supporting C++17 or newer**. C++17 is the minimum language standard. See the [installation requirements](https://openghz.github.io/servopy/getting-started/#1-准备环境) for build dependencies and the tested environment.
 
 ```bash
 git clone https://github.com/OpenGHz/servopy.git
@@ -62,16 +74,17 @@ No display or robot is needed. This ideal-feedback example runs **1,200 steps**,
 
 ### Your first control step
 
-Run this complete example from the repository root. `Servo.step()` consumes feedback and returns the next reference; your simulator or device adapter executes it.
+After installing the package, run this complete example from any directory. `Servo.step()` consumes feedback and returns the next reference; your simulator or device adapter executes it.
 
 <!-- runnable: readme-step -->
 ```python
+from importlib.resources import files
 from servo_py import (
     Action, JointPositionCommand, JointState, Servo, ServoConfig, load_urdf,
 )
 
 model = load_urdf(
-    "examples/planar2.urdf", base="base", tip="tool",
+    files("servo_py.examples").joinpath("planar2.urdf"), base="base", tip="tool",
     acceleration_limits=[3.0, 3.0],
 )
 servo = Servo(model, ServoConfig(task_axes=(0, 1)))
@@ -102,7 +115,7 @@ python examples/mujoco_panda.py --control-mode joint-position
 | `joint-position` | Joint target → joint reference → position actuator |
 | `ik-position` | Pose → position IK → joint reference → position actuator |
 
-The viewer runs an 18-second simulation. Press **Space** to pause, or add `--headless` to run without a display. Model assets are bundled with the source. The [Panda guide](https://openghz.github.io/servopy/mujoco-panda/) covers Ruckig smoothing, external targets, recording and measured tracking behavior.
+The viewer runs an 18-second simulation. Press **Space** to pause, or add `--headless` to run without a display. Model assets are bundled with both the source and wheel. For a PyPI installation, use `python -m pip install 'servo-py[mujoco]'` and `servo-py-panda --control-mode joint-position`. The [Panda guide](https://openghz.github.io/servopy/mujoco-panda/) covers Ruckig smoothing, external targets, recording and measured tracking behavior.
 
 ## Documentation
 

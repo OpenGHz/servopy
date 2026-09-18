@@ -153,7 +153,7 @@ preferences. Constraints and subsequent singularity/scaling operations can chang
 the task direction; this is not a general inequality or strict hierarchy solver.
 SOLVER_ERROR latches on exceptions, dimension errors or invalid solver output.
 
-RuckigSmoothing is an optional Python MotionGenerator backed by Ruckig 0.12.2.
+RuckigSmoothing is an optional Python MotionGenerator backed by Ruckig 0.19.4.
 JointPosition uses a position target, other branches use target velocities.
 It checks continuous position/velocity extrema and acceleration/jerk phases,
 and retains a feasible continuation to zero velocity and acceleration for each

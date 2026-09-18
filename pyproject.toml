@@ -6,11 +6,29 @@ build-backend = "scikit_build_core.build"
 name = "servo-py"
 version = "0.3.0"
 description = "ROS-independent C++ online joint and Cartesian servoing with Python bindings"
-readme = "README.md"
+readme = "README.pypi.md"
 requires-python = ">=3.10"
 license = "MIT"
 license-files = ["LICENSE", "NOTICE", "LICENSES/*", "examples/assets/PANDA-LICENSE.txt"]
 dependencies = ["numpy>=1.23"]
+keywords = ["robotics", "servo", "kinematics", "mujoco", "motion-control"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: C++",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering",
+]
+
+[project.scripts]
+servo-py-panda = "servo_py.examples.mujoco_panda:main"
 
 [project.urls]
 Documentation = "https://openghz.github.io/servopy/"
@@ -21,7 +39,7 @@ Issues = "https://github.com/OpenGHz/servopy/issues"
 pinocchio = ["pin>=3.0"]
 test = ["pytest>=7"]
 mujoco = ["mujoco>=3.2,<4", "imageio>=2.34", "imageio-ffmpeg>=0.4.9"]
-ruckig = ["ruckig==0.12.2"]
+ruckig = ["ruckig==0.19.4"]
 docs = ["mkdocs>=1.6,<2", "mkdocs-material>=9.6,<10", "jieba>=0.42.1,<1"]
 
 [tool.scikit-build]
@@ -35,3 +53,18 @@ sdist.exclude = ["build/**", "dist/**", "site/**", "outputs/**", ".venv/**", ".p
 testpaths = ["tests"]
 addopts = "-ra"
 markers = ["pinocchio: optional Pinocchio backend parity tests"]
+
+[tool.cibuildwheel]
+build = "cp3{10,11,12,13,14}-manylinux_*"
+test-requires = ["pytest>=7"]
+test-command = ["python -m pytest {project}/tests", "python {project}/scripts/smoke_wheel.py"]
+environment = { CMAKE_BUILD_PARALLEL_LEVEL = "2" }
+
+[tool.cibuildwheel.linux]
+manylinux-x86_64-image = "manylinux_2_28"
+manylinux-aarch64-image = "manylinux_2_28"
+
+[[tool.cibuildwheel.overrides]]
+select = "*-manylinux_x86_64"
+# Ruckig currently publishes Linux wheels for x86_64 only.
+test-extras = ["ruckig"]

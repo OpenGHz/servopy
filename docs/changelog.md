@@ -2,7 +2,15 @@
 
 此处按功能版本记录变化；验证环境与数值结果集中保留在 [验证记录](validation.md)。这些条目描述源码版本，不表示已向 PyPI 发布或提供跨平台 wheel。
 
-## 未发布的文档更新
+## 首次 PyPI 发布准备
+
+- 增加 manylinux_2_28 的 CPython 3.10–3.14 / x86_64、ARM64 wheel 流水线，从 sdist 构建并验证完整产物。
+- wheel 包含示例、URDF 和带许可证的 Panda 资产，新增 `servo-py-panda` 入口及 `python -m servo_py.examples.track_pose`。
+- 可选 Ruckig 从 0.12.2 升至 0.19.4，覆盖较新 Python 的上游 x86_64 wheel；ARM64 不承诺该可选项免编译。
+- 增加 Ubuntu 二进制安装检查、独立 PyPI README，以及 TestPyPI / PyPI Trusted Publishing 流程。
+- 首次上传仍待维护者完成账号配置，步骤见 [PyPI 发布](publishing.md)。
+
+## 文档更新
 
 - 项目展示名称统一为 ServoPy，加入适配浅色/深色背景的 SVG Logo。
 - README 默认展示英文，中文移至 README.zh-CN.md；语言栏独立于文档导航。

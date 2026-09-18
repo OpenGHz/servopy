@@ -1,6 +1,7 @@
 """Panda servoing with torque or joint-position actuators and a default viewer.
 
-Run from a source checkout: python examples/mujoco_panda.py
+Run after installing servo-py[mujoco]: servo-py-panda
+From a source checkout: python examples/mujoco_panda.py
 Position control: add --control-mode joint-position or --control-mode ik-position
 Headless recording: MUJOCO_GL=egl python examples/mujoco_panda.py --headless --record demo.mp4
 """
@@ -24,7 +25,7 @@ import numpy as np
 try:
     import mujoco
 except ImportError as exc:
-    raise ImportError("Install the demo dependencies: python -m pip install '.[mujoco]'") from exc
+    raise ImportError("Install the demo dependencies: python -m pip install 'servo-py[mujoco]'") from exc
 
 from servo_py import (
     Action, JointPositionCommand, JointLimits, JointState, Kinematics, PoseCommand, PositionIKAdapter,

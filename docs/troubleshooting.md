@@ -11,7 +11,7 @@
 | 编译进程被杀死 | 限制并行：`CMAKE_BUILD_PARALLEL_LEVEL=2 python -m pip install .` |
 | `No module named servo_py` | 确认激活正确虚拟环境，并使用 `python -m pip` 安装 |
 | 新源码却缺少 JointPosition/QP 等 API | 重新安装 C++ 扩展，检查实际导入路径 |
-| Ruckig 导入失败 | 安装 `.[ruckig]`；项目验证的是固定 0.12.2 版本 |
+| Ruckig 导入失败 | 源码安装用 `.[ruckig]`；发行包用 `servo-py[ruckig]`，当前固定 0.19.4；ARM64 上游没有预编译包 |
 | 可选测试被跳过 | 对应依赖未装，见 [安装选项](getting-started.md#3-选择需要的扩展) |
 
 定位当前环境：

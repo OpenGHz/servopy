@@ -47,7 +47,19 @@
 
 ## 快速上手
 
-需要 **Python 3.10 或更新版本**，以及**支持 C++17 或更新标准的编译器**。C++17 表示最低语言标准。下面的命令适用于已验证的 Linux 环境，从源码安装运行；构建依赖和已测试环境见[安装要求](https://openghz.github.io/servopy/getting-started/#1-准备环境)。
+需要 **Python 3.10 或更新版本**。Linux 发布流水线为 CPython 3.10–3.14、x86_64 / ARM64（glibc 2.28+）构建包含示例和模型的 wheel。**首次 PyPI 上传仍待维护者完成账号配置**，步骤见[发布指南](https://openghz.github.io/servopy/publishing/)。
+
+发布完成后，可在虚拟环境直接安装，无需 C++ 编译器：
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install --only-binary=:all: servo-py
+python -m servo_py.examples.track_pose
+```
+
+现在也可从源码安装，此时需要**支持 C++17 或更新标准的编译器**。C++17 表示最低语言标准；构建依赖和已测试环境见[安装要求](https://openghz.github.io/servopy/getting-started/#1-准备环境)。
 
 ```bash
 git clone https://github.com/OpenGHz/servopy.git
@@ -62,16 +74,17 @@ python examples/track_pose.py
 
 ### 第一次伺服计算
 
-在仓库根目录运行以下完整示例。`Servo.step()` 接收反馈并返回下一参考，实际执行由仿真器或设备适配层负责。
+安装后可从任意目录运行以下完整示例。`Servo.step()` 接收反馈并返回下一参考，实际执行由仿真器或设备适配层负责。
 
 <!-- runnable: readme-step-zh -->
 ```python
+from importlib.resources import files
 from servo_py import (
     Action, JointPositionCommand, JointState, Servo, ServoConfig, load_urdf,
 )
 
 model = load_urdf(
-    "examples/planar2.urdf", base="base", tip="tool",
+    files("servo_py.examples").joinpath("planar2.urdf"), base="base", tip="tool",
     acceleration_limits=[3.0, 3.0],
 )
 servo = Servo(model, ServoConfig(task_axes=(0, 1)))
@@ -102,7 +115,7 @@ python examples/mujoco_panda.py --control-mode joint-position
 | `joint-position` | 关节目标 → 关节参考 → 位置执行器 |
 | `ik-position` | 位姿 → 位置 IK → 关节参考 → 位置执行器 |
 
-默认运行 18 秒仿真，按**空格**暂停，无桌面时加 `--headless`。模型资产随源码提供。[Panda 教程](https://openghz.github.io/servopy/mujoco-panda/)进一步介绍 Ruckig 平滑、外部目标、录制和实际跟踪表现。
+默认运行 18 秒仿真，按**空格**暂停，无桌面时加 `--headless`。模型资产随源码和 wheel 提供。通过 PyPI 安装时，使用 `python -m pip install 'servo-py[mujoco]'` 和 `servo-py-panda --control-mode joint-position` 即可运行。[Panda 教程](https://openghz.github.io/servopy/mujoco-panda/)进一步介绍 Ruckig 平滑、外部目标、录制和实际跟踪表现。
 
 ## 文档
 

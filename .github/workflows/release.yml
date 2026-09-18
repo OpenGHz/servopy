@@ -1,0 +1,216 @@
+name: Python distributions
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+      - pyproject.toml
+      - CMakeLists.txt
+      - cmake/**
+      - cpp/**
+      - include/**
+      - src/**
+      - tests/**
+      - examples/**
+      - scripts/check_release.py
+      - scripts/smoke_wheel.py
+      - README.pypi.md
+      - LICENSE
+      - LICENSES/**
+      - NOTICE
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/release.yml
+      - pyproject.toml
+      - CMakeLists.txt
+      - cmake/**
+      - cpp/**
+      - include/**
+      - src/**
+      - tests/**
+      - examples/**
+      - scripts/check_release.py
+      - scripts/smoke_wheel.py
+      - README.pypi.md
+      - LICENSE
+      - LICENSES/**
+      - NOTICE
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      destination:
+        description: Build only, or publish to TestPyPI after all checks pass
+        type: choice
+        options: [build, testpypi]
+        default: build
+
+permissions:
+  contents: read
+
+concurrency:
+  group: distributions-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  sdist:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: python -m pip install build twine
+      - name: Check source versions and release tag
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || '' }}
+        run: python scripts/check_release.py --tag "$RELEASE_TAG"
+      - run: python -m build --sdist
+      - run: python -m twine check --strict dist/*
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist-sdist
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  wheels:
+    needs: sdist
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: x86_64
+          - runner: ubuntu-24.04-arm
+            arch: aarch64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist-sdist
+          path: sdist
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: python -m pip install cibuildwheel==4.2.1
+      - name: Build from sdist, auditwheel repair, and test each installed wheel
+        env:
+          CIBW_ARCHS_LINUX: ${{ matrix.arch }}
+        run: python -m cibuildwheel sdist/*.tar.gz --platform linux --output-dir wheelhouse
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist-wheels-${{ matrix.arch }}
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+
+  ubuntu:
+    name: Install on ${{ matrix.runner }} / Python ${{ matrix.python }}
+    needs: wheels
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+            python: "3.10"
+            extras: mujoco,pinocchio,ruckig,test
+          - runner: ubuntu-24.04
+            python: "3.12"
+            extras: mujoco,pinocchio,ruckig,test
+          - runner: ubuntu-24.04-arm
+            python: "3.12"
+            extras: mujoco,pinocchio,test
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: dist-wheels-*
+          merge-multiple: true
+          path: wheelhouse
+      - name: Install only binary distributions
+        env:
+          EXTRAS: ${{ matrix.extras }}
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --only-binary=:all: --no-index --no-deps --find-links wheelhouse servo-py
+          VERSION=$(python -c 'from importlib.metadata import version; print(version("servo-py"))')
+          python -m pip install --only-binary=:all: --find-links wheelhouse "servo-py[$EXTRAS]==$VERSION"
+          python -m pip check
+      - name: Test installed extension and optional backends
+        run: python -m pytest
+      - name: Run bundled examples outside the checkout
+        run: python scripts/smoke_wheel.py --mujoco
+
+  verify:
+    needs: [sdist, wheels, ubuntu]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: dist-*
+          merge-multiple: true
+          path: dist
+      - run: python -m pip install twine
+      - run: python -m twine check --strict dist/*
+      - run: python scripts/check_release.py --dist dist
+      - uses: actions/upload-artifact@v7
+        with:
+          name: publish-distributions
+          path: dist/*
+          if-no-files-found: error
+
+  testpypi:
+    if: github.repository == 'OpenGHz/servopy' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.destination == 'testpypi'
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/servo-py/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: publish-distributions
+          path: dist
+      - name: Publish via Trusted Publishing
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  pypi:
+    if: github.repository == 'OpenGHz/servopy' && github.event_name == 'release'
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment:
+      name: pypi
+      url: https://pypi.org/project/servo-py/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: publish-distributions
+          path: dist
+      - name: Publish via Trusted Publishing
+        uses: pypa/gh-action-pypi-publish@release/v1

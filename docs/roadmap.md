@@ -1,6 +1,6 @@
 # 功能状态与后续工作
 
-本清单对应 `0.3.0`。本批按要求补齐控制算法、调度、目标输入和对照工具；未扩展几何碰撞、位控重力补偿或跨平台构建。
+本清单对应 `0.3.0`。已补齐控制算法、调度、目标输入和对照工具，并加入 Linux wheel 构建与发布流程；未扩展几何碰撞或位控重力补偿。
 
 ## 已实现
 
@@ -14,6 +14,7 @@
 | 周期调度与设备适配 | ServoRunner、最新目标邮箱、Device/CallbackDevice、SimulatedDevice；取消、停止、恢复、断流及过载处理 |
 | Panda 外部目标 | 实时 stdin JSONL、带仿真时间的文件回放、三种模式接入与目标超时 |
 | 记录回放与数值对照 | JSONL 控制记录、确定性 replay、日志比较、ROS 2 JointTrajectory JSON 导出比较和命令行报告 |
+| Linux wheel / CI | CPython 3.10–3.14、x86_64 / ARM64、manylinux_2_28；Ubuntu 安装验证与 Trusted Publishing，首次上传配置见[发布指南](publishing.md) |
 
 已有功能还包括 JointJog、Twist、Pose、奇异性减速/离开策略、外部碰撞比例接口、URDF/串联运动学、Pinocchio、MuJoCo viewer 与录制。高级用法见 [advanced-control.md](advanced-control.md)，验证范围见 [validation.md](validation.md)。
 
@@ -23,7 +24,7 @@
 |---|---|
 | 实际几何碰撞检查 | 仍只有外部 CollisionSample；未添加自碰撞/环境距离后端 |
 | Panda 位控重力补偿 | 位置执行器仍保留原始 PD 与稳态偏差 |
-| 跨平台 wheel / CI | 未添加 manylinux 修复、其他 OS 或 Python 版本矩阵 |
+| 其他平台 wheel | 暂不提供 Windows、macOS、32 位、PyPy 或 free-threaded Python 的 wheel |
 
 ## 仍需外部环境验收
 

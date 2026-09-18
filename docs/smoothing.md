@@ -52,7 +52,7 @@ result = servo.step(state, command, dt=0.01, now_ns=now_ns)
 sample = servo.sample_reference(0.002)
 ```
 
-`max_jerk` 接受正有限标量或每关节向量，单位为 rad/s³ 或 m/s³。当前可选依赖固定为验证过的 `ruckig==0.12.2`，使用本地 state-to-state 计算，不调用 waypoint 云接口。上游接口说明见 [Ruckig 文档](https://docs.ruckig.com/)。
+`max_jerk` 接受正有限标量或每关节向量，单位为 rad/s³ 或 m/s³。当前可选依赖固定为 `ruckig==0.19.4`，使用本地 state-to-state 计算，不调用 waypoint 云接口。上游目前为 Linux x86_64 提供预编译包；ARM64 安装该可选项可能需要编译 Ruckig。历史验证记录保留原测试版本。上游接口说明见 [Ruckig 文档](https://docs.ruckig.com/)。
 
 有效 JointPosition 目标使用位置轨迹规划，终点速度/加速度为零，不再使用比例增益来决定此模式的运动速度。目标连续关节仍使用最短角差、展开积分。Twist、Pose、JointJog、碰撞比例缩放及制动使用目标速度模式。Ruckig 的速度模式未直接限制位置，因此本实现解析计算各 jerk 段的位置和速度极值；每个输出区间都必须保留一个在限位内可执行的停止轨迹。
 

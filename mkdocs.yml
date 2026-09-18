@@ -76,6 +76,7 @@ nav:
       - 功能状态: roadmap.md
       - 更新与迁移: changelog.md
       - 贡献指南: contributing.md
+      - PyPI 发布: publishing.md
       - 旧入口导航: advanced-control.md
 
 validation:
