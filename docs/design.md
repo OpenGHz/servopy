@@ -1,5 +1,17 @@
 # Execution contract
 
+ServoPy provides realtime joint and Cartesian servo control. An application
+continuously supplies targets and measured feedback; each `step()` updates the
+reference for the next control interval. Targets may change while motion is in
+progress. A device adapter executes the interval, and the next cycle uses fresh
+measured feedback. The [realtime servo guide](realtime-servo.md) demonstrates
+this loop, including differing command/control rates and command expiry.
+
+Realtime describes this ongoing response to commands and feedback. It does not
+imply a hard real-time deadline guarantee: the Python runner uses best-effort
+scheduling, and the native core currently performs dynamic allocations. The
+contracts below define timing, reference execution and downstream responsibilities.
+
 The native core uses C++ and Eigen, with C++17 as the minimum language standard.
 Build requirements and tested environments are described in the
 [installation guide](getting-started.md#1-准备环境) and [validation record](validation.md).

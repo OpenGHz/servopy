@@ -1,18 +1,20 @@
 # 更新与迁移
 
-此处按功能版本记录变化；验证环境与数值结果集中保留在 [验证记录](validation.md)。这些条目描述源码版本，不表示已向 PyPI 发布或提供跨平台 wheel。
+此处按功能版本记录变化；验证环境与数值结果集中保留在[验证记录](validation.md)。首次公开的 PyPI 发行版为 **0.3.0**；0.1.0 / 0.2.0 条目保留发布前的源码开发与接口迁移过程。
 
-## 首次 PyPI 发布准备
+## 首次 PyPI 发布
 
 - 增加 manylinux_2_28 的 CPython 3.10–3.14 / x86_64、ARM64 wheel 流水线，从 sdist 构建并验证完整产物。
 - wheel 包含示例和小型 URDF，新增 `servo-py-panda` 入口及 `python -m servo_py.examples.track_pose`。
 - 从 wheel 和 sdist 排除 Panda 模型压缩包；示例首次使用时下载固定模型，经 SHA-256 校验后缓存，支持离线档案路径与缓存复用。
 - 可选 Ruckig 从 0.12.2 升至 0.19.4，覆盖较新 Python 的上游 x86_64 wheel；ARM64 不承诺该可选项免编译。
 - 增加 Ubuntu 二进制安装检查、独立 PyPI README，以及 TestPyPI / PyPI Trusted Publishing 流程。
-- `0.3.0` 已上传 TestPyPI，并通过从测试站实际安装与示例运行验证；正式 PyPI 发布待完成，步骤见 [PyPI 发布](publishing.md)。
+- `0.3.0` 已发布到[正式 PyPI](https://pypi.org/project/servo-py/0.3.0/)，并通过从正式站全新安装、基础示例及 Panda 模型下载和缓存验证，记录见[PyPI 发布](publishing.md)。
 
 ## 文档更新
 
+- 项目定位统一为 Realtime robot control / 实时关节与笛卡尔伺服控制，突出运行中更新目标、实际反馈和逐周期输出；保留 best-effort 调度与硬实时保证的边界。
+- 新增[实时伺服教程](realtime-servo.md)，提供 20 Hz 目标源 / 100 Hz 仿真时钟控制循环、在线反向及断流制动的完整可执行示例。
 - 项目展示名称统一为 ServoPy，加入适配浅色/深色背景的 SVG Logo。
 - README 默认展示英文，中文移至 README.zh-CN.md；语言栏独立于文档导航。
 - 同步 Panda 录制画面的项目名，重新生成真实仿真的 GIF、视频与对应指标。

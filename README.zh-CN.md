@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <strong>从机器人目标，到可控的运动。</strong><br>
+  <strong>基于 C++ 与 Python 的实时机器人控制。</strong><br>
   C++ 内核 &nbsp;·&nbsp; Python 接口 &nbsp;·&nbsp; 无需 ROS
 </p>
 
@@ -22,7 +22,9 @@
 
 ---
 
-**ServoPy** 根据关节或末端目标与实际反馈，生成满足约束的运动参考。适合开发机器人控制原型、接入已有 IK 求解器，以及在 MuJoCo 中进行闭环实验。
+**ServoPy** 是一个**实时关节与笛卡尔伺服控制库**，提供 C++ 内核和 Python API，无需 ROS。每个控制周期根据最新目标和实际关节反馈，更新交给下游控制器执行的运动指令。
+
+机器人运动过程中，可以持续发送关节位置、关节速度、末端位姿或 Twist。目标可以来自遥操作界面、视觉反馈循环或其他应用；ServoPy 随目标变化持续更新控制输出。目标来源和设备连接由应用接入。
 
 <p align="center">
   <a href="docs/media/panda-servo.mp4">
@@ -36,20 +38,25 @@
   <a href="docs/media/panda-servo.json">查看测量结果</a>
 </p>
 
-## 可以用它做什么
+## 实时伺服控制
 
-- **控制关节或末端。** 输入位置、速度、位姿或 Twist，也可以接入自己的位置 IK。
-- **约束运动过程。** 限制关节位置、速度和加速度，按需启用 Ruckig 的 jerk 约束。
-- **选择数值后端。** 使用原生 URDF 或 Pinocchio 运动学、DLS 或盒约束 QP，以及零空间姿态目标。
-- **接入与复现。** 运行 Panda 演示、绑定设备 SDK、流式发送目标，并记录和回放控制过程。
+- **运动中更新目标。** 持续输入关节或末端命令；最新目标邮箱保留最新命令，供下一控制周期读取。
+- **闭环响应反馈。** 每周期把实际反馈交给 `Servo.step()`，也可用 `ServoRunner` 周期调度反馈读取、控制输出和设备停止回调。
+- **约束每次控制更新。** 限制关节位置、速度和加速度，处理奇异性，按需启用 Ruckig 的 jerk 约束。指令过期请求制动，反馈和时序故障明确上报。
+- **接入自己的运动学与 IK。** 选择原生 URDF 或 Pinocchio、DLS 或盒约束 QP、零空间姿态目标，也可接入已有 Python 位置 IK。
+- **观察正在运行的控制器。** 体验 Panda 三种控制模式、流式发送实时目标，并记录和回放控制过程。
+
+每次 `step()` 输出下一控制区间的参考；下一周期可以采用新目标，无需等上一个目标执行完成。[实时伺服教程](https://openghz.github.io/servopy/realtime-servo/)提供运行中切换目标、低频目标源与高频伺服循环配合、断流后制动的完整示例。
+
+这里的 **realtime（实时）** 指周期控制循环持续响应目标与反馈。`ServoRunner` 使用尽力而为的 Python 调度，ServoPy 不保证硬实时 deadline；时序要求与设备职责见[执行契约](https://openghz.github.io/servopy/design/)。
 
 必需的第三方 Python 运行依赖只有 NumPy；从源码构建还需要 C++ 工具链。MuJoCo、Pinocchio 和 Ruckig 均为可选依赖。
 
 ## 快速上手
 
-需要 **Python 3.10 或更新版本**。Linux 发布流水线为 CPython 3.10–3.14、x86_64 / ARM64（glibc 2.28+）构建包含示例代码和小型 URDF 的 wheel，Panda 模型仅在运行该示例时下载。**TestPyPI 安装已验证，正式 PyPI 发布待完成**，步骤见[发布指南](https://openghz.github.io/servopy/publishing/)。
+需要 **Python 3.10 或更新版本**。[ServoPy 0.3.0 已发布到 PyPI](https://pypi.org/project/servo-py/0.3.0/)，提供 CPython 3.10–3.14、x86_64 / ARM64（glibc 2.28+）的 Linux wheel，包含示例代码和小型 URDF。Panda 模型仅在运行该示例时下载。
 
-发布完成后，可在虚拟环境直接安装，无需 C++ 编译器：
+可在虚拟环境直接安装，无需 C++ 编译器：
 
 ```bash
 python3 -m venv .venv
@@ -74,7 +81,7 @@ python examples/track_pose.py
 
 ### 第一次伺服计算
 
-安装后可从任意目录运行以下完整示例。`Servo.step()` 接收反馈并返回下一参考，实际执行由仿真器或设备适配层负责。
+安装后可从任意目录运行以下完整示例。它展示一个控制周期：`Servo.step()` 接收最新目标和实际反馈，返回交给仿真器或设备适配层执行的下一参考。运行中的控制器用新反馈和最新命令重复这一周期。
 
 <!-- runnable: readme-step-zh -->
 ```python
@@ -98,15 +105,15 @@ if result.action == Action.REJECT:
 print(result.action.name, result.reference.q)
 ```
 
-预期输出：`TRACK [ 0.50015 -0.99985]`。接下来阅读[完整关节控制循环](https://openghz.github.io/servopy/joint-position/)，并通过[设备接入](https://openghz.github.io/servopy/runtime/)了解执行时序与设备侧停止。
+预期输出：`TRACK [ 0.50015 -0.99985]`。接下来运行[持续更新目标的完整循环](https://openghz.github.io/servopy/realtime-servo/)，并通过[设备接入](https://openghz.github.io/servopy/runtime/)了解执行时序与设备侧停止。
 
 ## Panda 演示
 
 完成快速上手后，安装 MuJoCo 并选择控制模式：
 
 ```bash
-CMAKE_BUILD_PARALLEL_LEVEL=2 python -m pip install '.[mujoco]'
-python examples/mujoco_panda.py --control-mode joint-position
+python -m pip install --only-binary=:all: 'servo-py[mujoco]'
+servo-py-panda --control-mode joint-position
 ```
 
 | `--control-mode` | 目标 → 参考 → 执行器 |
@@ -115,7 +122,9 @@ python examples/mujoco_panda.py --control-mode joint-position
 | `joint-position` | 关节目标 → 关节参考 → 位置执行器 |
 | `ik-position` | 位姿 → 位置 IK → 关节参考 → 位置执行器 |
 
-默认运行 18 秒仿真，按**空格**暂停，无桌面时加 `--headless`。wheel 和源码发行包不包含 Panda 模型；安装后的示例首次运行时下载约 5 MB，经校验后缓存，之后可离线复用。Git 克隆可直接使用仓库已有压缩包。通过 PyPI 安装时，使用 `python -m pip install 'servo-py[mujoco]'` 和 `servo-py-panda --control-mode joint-position` 即可运行。[Panda 教程](https://openghz.github.io/servopy/mujoco-panda/)进一步介绍离线模型路径、Ruckig 平滑、外部目标、录制和实际跟踪表现。
+默认运行 18 秒，伺服循环为 100 Hz、物理仿真为 500 Hz。每个伺服周期读取 MuJoCo 反馈并更新控制参考。按**空格**暂停，无桌面时加 `--headless`。使用 `--target-stdin` 可接入实时 JSONL 目标流，见[流式目标输入](https://openghz.github.io/servopy/recording/#panda-外部目标与回放)。
+
+wheel 和源码发行包不包含 Panda 模型；安装后的示例首次运行时下载约 5 MB，经校验后缓存，之后可离线复用。Git 克隆可直接使用仓库已有压缩包。[Panda 教程](https://openghz.github.io/servopy/mujoco-panda/)进一步介绍离线模型路径、Ruckig 平滑、外部目标、录制和实际跟踪表现。
 
 ## 文档
 
@@ -125,6 +134,7 @@ python examples/mujoco_panda.py --control-mode joint-position
 
 | 下一步 | 阅读入口 |
 |---|---|
+| 编写实时控制循环 | [实时伺服](https://openghz.github.io/servopy/realtime-servo/) · [设备和调度](https://openghz.github.io/servopy/runtime/) |
 | 编写控制器 | [关节控制](https://openghz.github.io/servopy/joint-position/) · [位置 IK](https://openghz.github.io/servopy/python-ik/) |
 | 调整或扩展 | [轨迹平滑](https://openghz.github.io/servopy/smoothing/) · [QP 与零空间](https://openghz.github.io/servopy/solvers/) · [C++](https://openghz.github.io/servopy/cpp/) |
 | 接入与分析 | [设备和调度](https://openghz.github.io/servopy/runtime/) · [记录与回放](https://openghz.github.io/servopy/recording/) |
@@ -134,9 +144,9 @@ python examples/mujoco_panda.py --control-mode joint-position
 
 ## 项目状态
 
-源码版本 **0.3.0** 已在 **Linux x86_64 / Python 3.12** 验证，包含 178 项 Python 测试、独立 C++ 测试和 Panda 三种控制模式的动力学仿真。条件和结果保存在[验证记录](https://openghz.github.io/servopy/validation/)中。
+发行版本 **0.3.0** 已通过 Ubuntu 22.04 / 24.04 的安装验证：**x86_64 通过 188 项 Python 测试**，**ARM64 通过 176 项**，跳过可选 Ruckig 检查。验证还包括独立 C++ 测试和 Panda 三种控制模式的动力学仿真。条件和结果保存在[验证记录](https://openghz.github.io/servopy/validation/)中。
 
-ServoPy 负责生成参考；反馈获取、执行器命令和设备停止由应用负责。目前尚未完成真机验证、几何碰撞检查或硬实时执行验证，Panda 位控演示保留重力导致的跟踪偏差。完整能力边界见[路线图](https://openghz.github.io/servopy/roadmap/)。
+实时伺服循环输出供下游控制器执行的运动参考；反馈获取、执行器命令和设备停止由应用负责。目前尚未完成真机验证、几何碰撞检查或硬实时执行验证，Panda 位控演示保留重力导致的跟踪偏差。完整能力边界见[路线图](https://openghz.github.io/servopy/roadmap/)。
 
 ## 参与贡献
 

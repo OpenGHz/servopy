@@ -5,13 +5,13 @@ build-backend = "scikit_build_core.build"
 [project]
 name = "servo-py"
 version = "0.3.0"
-description = "ROS-independent C++ online joint and Cartesian servoing with Python bindings"
+description = "Realtime joint and Cartesian robot control with a ROS-independent C++ core and Python API"
 readme = "README.pypi.md"
 requires-python = ">=3.10"
 license = "MIT"
 license-files = ["LICENSE", "NOTICE", "LICENSES/*", "examples/assets/PANDA-LICENSE.txt"]
 dependencies = ["numpy>=1.23"]
-keywords = ["robotics", "servo", "kinematics", "mujoco", "motion-control"]
+keywords = ["robotics", "servo", "realtime", "kinematics", "mujoco", "motion-control"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Science/Research",

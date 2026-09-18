@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <strong>From robot targets to controlled motion.</strong><br>
+  <strong>Realtime robot control with C++ and Python.</strong><br>
   C++ core &nbsp;·&nbsp; Python API &nbsp;·&nbsp; ROS-independent
 </p>
 
@@ -22,7 +22,9 @@
 
 ---
 
-**ServoPy** turns joint or Cartesian targets and measured feedback into bounded motion references. Use it to prototype robot controllers, connect an existing IK solver, or run closed-loop experiments in MuJoCo.
+**ServoPy** is a library for **realtime joint and Cartesian servo control**, with a C++ core, a Python API, and no ROS dependency. At every control cycle, it uses the latest target and measured joint feedback to update the next motion command for your controller.
+
+Keep sending joint positions, joint velocities, end-effector poses or twists while the robot moves. Targets can come from a teleoperation interface, a vision loop or another application; ServoPy continuously updates its output as those targets change. Your application supplies the target source and device connection.
 
 <p align="center">
   <a href="docs/media/panda-servo.mp4">
@@ -36,20 +38,25 @@
   <a href="docs/media/panda-servo.json">Measured results</a>
 </p>
 
-## What you can build
+## Realtime servo control
 
-- **Control in joint or Cartesian space.** Send positions, velocities, poses or twists; bring your own position IK when needed.
-- **Shape the motion.** Apply joint position, velocity and acceleration limits, with optional Ruckig jerk control.
-- **Choose the numerical tools.** Use native URDF kinematics or Pinocchio, DLS or bounded QP, and optional nullspace posture objectives.
-- **Connect and reproduce.** Run the Panda demo, bind a device SDK, stream targets, and record or replay control sessions.
+- **Update targets during motion.** Stream joint or Cartesian commands; the latest-target mailbox keeps the newest command for the next control cycle.
+- **Close the feedback loop.** Call `Servo.step()` with fresh measured state each cycle, or use `ServoRunner` to connect feedback, output and device stop callbacks on a periodic schedule.
+- **Constrain each control update.** Apply joint position, velocity and acceleration limits, singularity handling and optional Ruckig jerk control. Expired commands request braking; feedback and timing faults are explicit.
+- **Use your kinematics and IK.** Choose native URDF or Pinocchio kinematics, DLS or bounded QP, optional nullspace posture objectives, or connect an existing Python position IK solver.
+- **Inspect a running controller.** Try all three Panda control modes, stream live targets, and record or replay control sessions.
+
+Each `step()` produces the reference for the next control interval. A new target can be used at the next cycle without waiting for the previous target to finish. Read the [realtime servo guide](https://openghz.github.io/servopy/realtime-servo/) for a complete example with changing targets, a slower command source, and braking when the stream stops.
+
+Here, **realtime** means continuously responding to targets and feedback in a periodic control loop. `ServoRunner` uses best-effort Python scheduling; ServoPy does not guarantee hard real-time deadlines. Timing requirements and device responsibilities are covered in the [execution contract](https://openghz.github.io/servopy/design/).
 
 NumPy is the only required third-party Python runtime dependency. Building from source also needs a C++ toolchain. MuJoCo, Pinocchio and Ruckig are optional.
 
 ## Quick start
 
-You need **Python 3.10 or newer**. The Linux release workflow builds wheels for CPython 3.10–3.14 on x86_64 and ARM64 (glibc 2.28+), including example code and small URDFs. Panda model assets are downloaded only when running that demo. **TestPyPI installation is verified; the production PyPI release is pending**. See the [release guide](https://openghz.github.io/servopy/publishing/).
+You need **Python 3.10 or newer**. [ServoPy 0.3.0 is available on PyPI](https://pypi.org/project/servo-py/0.3.0/) with Linux wheels for CPython 3.10–3.14 on x86_64 and ARM64 (glibc 2.28+), including example code and small URDFs. Panda model assets are downloaded only when running that demo.
 
-Once the release is available, install in a virtual environment without a C++ compiler:
+Install in a virtual environment without a C++ compiler:
 
 ```bash
 python3 -m venv .venv
@@ -74,7 +81,7 @@ No display or robot is needed. This ideal-feedback example runs **1,200 steps**,
 
 ### Your first control step
 
-After installing the package, run this complete example from any directory. `Servo.step()` consumes feedback and returns the next reference; your simulator or device adapter executes it.
+After installing the package, run this complete example from any directory. It shows one control cycle: `Servo.step()` consumes the latest target and measured feedback, then returns the next reference for your simulator or device adapter to execute. In a running controller, repeat this cycle with fresh feedback and the latest command.
 
 <!-- runnable: readme-step -->
 ```python
@@ -98,15 +105,15 @@ if result.action == Action.REJECT:
 print(result.action.name, result.reference.q)
 ```
 
-Expected output: `TRACK [ 0.50015 -0.99985]`. For execution timing and device-side stopping, read the [execution contract](https://openghz.github.io/servopy/design/).
+Expected output: `TRACK [ 0.50015 -0.99985]`. Continue with the [complete loop with changing targets](https://openghz.github.io/servopy/realtime-servo/) and [device integration](https://openghz.github.io/servopy/runtime/).
 
 ## Panda demo
 
 After the quick start, add MuJoCo and choose a control mode:
 
 ```bash
-CMAKE_BUILD_PARALLEL_LEVEL=2 python -m pip install '.[mujoco]'
-python examples/mujoco_panda.py --control-mode joint-position
+python -m pip install --only-binary=:all: 'servo-py[mujoco]'
+servo-py-panda --control-mode joint-position
 ```
 
 | `--control-mode` | Target → reference → actuator |
@@ -115,7 +122,9 @@ python examples/mujoco_panda.py --control-mode joint-position
 | `joint-position` | Joint target → joint reference → position actuator |
 | `ik-position` | Pose → position IK → joint reference → position actuator |
 
-The viewer runs an 18-second simulation. Press **Space** to pause, or add `--headless` to run without a display. Wheels and source distributions omit the Panda model; the installed demo downloads about 5 MB once, verifies its checksum, and caches it for offline reuse. A Git checkout can use its existing archive. For a PyPI installation, use `python -m pip install 'servo-py[mujoco]'` and `servo-py-panda --control-mode joint-position`. The [Panda guide](https://openghz.github.io/servopy/mujoco-panda/) covers offline model paths, Ruckig smoothing, external targets, recording and measured tracking behavior.
+The viewer runs an 18-second simulation with a 100 Hz servo loop and 500 Hz physics. Each servo cycle reads MuJoCo feedback and updates the control reference. Press **Space** to pause, or add `--headless` to run without a display. Use `--target-stdin` to drive it with a live JSONL target stream; see [streaming targets](https://openghz.github.io/servopy/recording/#panda-外部目标与回放).
+
+Wheels and source distributions omit the Panda model; the installed demo downloads about 5 MB once, verifies its checksum, and caches it for offline reuse. A Git checkout can use its existing archive. The [Panda guide](https://openghz.github.io/servopy/mujoco-panda/) covers offline model paths, Ruckig smoothing, external targets, recording and measured tracking behavior.
 
 ## Documentation
 
@@ -125,6 +134,7 @@ The viewer runs an 18-second simulation. Press **Space** to pause, or add `--hea
 
 | Next step | Read |
 |---|---|
+| Build a realtime control loop | [Realtime servo](https://openghz.github.io/servopy/realtime-servo/) · [Devices & scheduling](https://openghz.github.io/servopy/runtime/) |
 | Write a controller | [Joint control](https://openghz.github.io/servopy/joint-position/) · [Position IK](https://openghz.github.io/servopy/python-ik/) |
 | Tune or extend it | [Smoothing](https://openghz.github.io/servopy/smoothing/) · [QP & nullspace](https://openghz.github.io/servopy/solvers/) · [C++](https://openghz.github.io/servopy/cpp/) |
 | Connect and inspect | [Devices & scheduling](https://openghz.github.io/servopy/runtime/) · [Recording & replay](https://openghz.github.io/servopy/recording/) |
@@ -134,9 +144,9 @@ The viewer runs an 18-second simulation. Press **Space** to pause, or add `--hea
 
 ## Project status
 
-Source version **0.3.0** was validated on **Linux x86_64 / Python 3.12** with 178 Python tests, a standalone C++ test and Panda dynamics in all three control modes. Conditions and results are preserved in the [validation record](https://openghz.github.io/servopy/validation/).
+Release **0.3.0** passed installed-wheel checks on Ubuntu 22.04 and 24.04: **188 Python tests on x86_64**, and **176 on ARM64** with optional Ruckig checks skipped. Validation also includes a standalone C++ test and Panda dynamics in all three control modes. Conditions and results are preserved in the [validation record](https://openghz.github.io/servopy/validation/).
 
-ServoPy generates references; the application owns feedback, actuator commands and device stopping. Physical-robot validation, geometric collision checking and hard real-time execution are outside the current verified scope. Position-mode Panda demos retain gravity-related tracking offsets. See the [roadmap](https://openghz.github.io/servopy/roadmap/) for capability boundaries.
+The realtime servo loop outputs motion references for a downstream controller; the application owns feedback, actuator commands and device stopping. Physical-robot validation, geometric collision checking and hard real-time execution are outside the current verified scope. Position-mode Panda demos retain gravity-related tracking offsets. See the [roadmap](https://openghz.github.io/servopy/roadmap/) for capability boundaries.
 
 ## Contributing
 

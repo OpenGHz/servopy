@@ -1,6 +1,6 @@
 # 快速上手
 
-**目标：** 安装 ServoPy，运行一个控制循环，再选择是否进入 Panda 仿真。无需 ROS、MoveIt 或物理机器人。
+**目标：** 安装 ServoPy，运行逐周期更新目标和反馈的实时伺服控制，再进入 Panda 闭环仿真。无需 ROS、MoveIt 或物理机器人。
 
 ## 1. 准备环境
 
@@ -8,7 +8,7 @@
 
 Linux 发布矩阵为常规 CPython 3.10–3.14、x86_64 / ARM64、glibc 2.28 或更新。匹配 wheel 的用户不需要安装 C++ 编译器、CMake 或 Eigen。Ubuntu 22.04 / 24.04 的默认 Python 满足要求；Ubuntu 20.04 默认 Python 3.8 不满足，需要另行准备 Python 3.10 或更新环境。
 
-**TestPyPI 安装已验证，正式 PyPI 发布待完成。** 以下命令在正式发布后可用；当前可先按下一节从源码安装，或按[发布指南](publishing.md#首次测试发布)从 TestPyPI 安装已上传的 `0.3.0`。
+**[ServoPy 0.3.0 已发布到正式 PyPI](https://pypi.org/project/servo-py/0.3.0/)。** 可直接在虚拟环境安装以下二进制发行包；发布与验证记录见[发布指南](publishing.md)。
 
 ```bash
 python3 -m venv .venv
@@ -111,7 +111,7 @@ Panda 模型不在 wheel 或源码发行包中；安装后的示例首次运行�
 
 ## 5. 写自己的循环
 
-先完成 [关节位置教程](joint-position.md)，再学习 [模型、坐标与时间约定](concepts.md)。需要实际硬件时，通过 [设备协议](runtime.md) 接入 SDK，并使用真实反馈替换理想回放状态。
+先运行[实时伺服教程](realtime-servo.md)中运动期间切换目标、断流后制动的完整循环，再学习[关节控制](joint-position.md)及[模型、坐标与时间约定](concepts.md)。用 `ServoRunner` 可以让应用按墙钟周期读取反馈、采用最新目标并发送输出；实际设备通过[设备协议](runtime.md)接入 SDK，并使用真实测量值替换理想反馈。
 
 ## 安装失败时
 
@@ -122,4 +122,4 @@ Panda 模型不在 wheel 或源码发行包中；安装后的示例首次运行�
 | 更新后仍没有新 API | 当前 Python 路径、`servo_py.__file__`、是否重新安装 |
 | 无法打开 viewer | 改用 `--headless`，或在有显示器的机器启动 |
 
-更多诊断命令见 [排障指南](troubleshooting.md)。可下载产物取决于发布是否完成；wheel 的平台和 Python 范围见[发布指南](publishing.md)。本机临时构建的 Linux wheel 不能代替 manylinux 发行包。
+更多诊断命令见 [排障指南](troubleshooting.md)。已发布 wheel 的平台和 Python 范围见[发布指南](publishing.md)。本机临时构建的 Linux wheel 不能代替 manylinux 发行包。

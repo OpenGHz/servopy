@@ -1,6 +1,6 @@
 # PyPI 发布
 
-发行包名为 **`servo-py`**，Python 导入名为 **`servo_py`**，GitHub 仓库名为 **`servopy`**。`0.3.0` 已完成 [TestPyPI 上传](https://test.pypi.org/project/servo-py/0.3.0/)及实际安装验证；**正式 PyPI 尚未发布**。
+发行包名为 **`servo-py`**，Python 导入名为 **`servo_py`**，GitHub 仓库名为 **`servopy`**。首个公开发行版 **`0.3.0` 已发布到[正式 PyPI](https://pypi.org/project/servo-py/0.3.0/)**，并通过全新环境的实际安装与示例运行验证。源码与版本说明见 [GitHub Release](https://github.com/OpenGHz/servopy/releases/tag/v0.3.0)。
 
 ## 发行范围
 
@@ -21,7 +21,7 @@ Ubuntu 20.04 的 glibc 满足二进制基线，但默认 Python 3.8 不满足项
 
 [Python distributions 工作流](https://github.com/OpenGHz/servopy/actions/workflows/release.yml) 在 pull request、main 推送、手动运行和 GitHub Release 发布时执行：
 
-当前 [TestPyPI 工作流](https://github.com/OpenGHz/servopy/actions/runs/35327922513)已通过全部检查，并上传 10 个不含 Panda 模型的 wheel 和 1 个 sdist。wheel 约为 0.38–0.42 MB；测试条件及从 TestPyPI 的实际安装结果见[验证记录](validation.md#testpypi-publication-and-installation)。这次手动运行未触发正式 PyPI 上传。
+首次[正式发布工作流](https://github.com/OpenGHz/servopy/actions/runs/35331455567)已通过全部检查，并上传 10 个不含 Panda 模型的 wheel 和 1 个 sdist。wheel 约为 0.38–0.42 MB；从正式站的实际安装结果见[验证记录](validation.md#pypi-publication-and-installation)。此前的[TestPyPI 工作流](https://github.com/OpenGHz/servopy/actions/runs/35327922513)也已完成测试站验证。
 
 1. 检查 pyproject、CMake 和 C++ 绑定中的版本一致，构建 sdist 并检查 PyPI 元数据。
 2. 在原生 x86_64 / ARM64 runner 的 manylinux_2_28 容器内，从该 sdist 构建所有 wheel，并由 auditwheel 检查、修复依赖。
@@ -51,7 +51,7 @@ Trusted Publishing 使用 GitHub OIDC，不需要把 PyPI token 放进 GitHub Se
 
 ## 首次测试发布
 
-**`0.3.0` 已完成此步骤并通过实际安装验证。** 无需再次上传相同版本；维护者可以继续下一节的[正式发布](#正式发布)。以下保留测试发布与复现步骤。
+**`0.3.0` 的测试发布和正式发布均已完成。** 以下保留首次测试发布与安装复现步骤；后续有内容变更的发行需使用新版本号。
 
 1. 在 **Actions → Python distributions → Run workflow** 选择 `main`，把 `destination` 设为 `testpypi`。
 2. 等全部构建、安装验证和 `testpypi` 作业成功，打开 [TestPyPI 项目](https://test.pypi.org/project/servo-py/0.3.0/) 确认文件。
@@ -79,13 +79,15 @@ servo-py-panda --headless
 
 ## 正式发布
 
+**`v0.3.0` 已完成正式发布，无需重新创建该 Release 或重复上传。** 以下保留首次发布流程；后续发行时，把示例中的版本号与 tag 换成尚未发布、且已同步到源码的版本。
+
 确认 TestPyPI 安装通过、正式 PyPI publisher 已配置后，在 GitHub **Releases → Draft a new release**：
 
 1. 从通过验证的 main 提交创建 tag `v0.3.0`。
 2. 填写版本说明，然后 **Publish release**。仅创建草稿或推送 tag 不会上传 PyPI。
 3. 等工作流全部检查与 `pypi` 作业成功，查看 [PyPI 项目](https://pypi.org/project/servo-py/0.3.0/)。
 
-随后 Ubuntu 用户即可在虚拟环境执行：
+Ubuntu 用户现在即可在虚拟环境执行：
 
 ```bash
 python -m pip install --only-binary=:all: 'servo-py==0.3.0'
@@ -94,7 +96,9 @@ python -m pip install --only-binary=:all: 'servo-py[mujoco]==0.3.0'
 servo-py-panda --headless
 ```
 
-最后更新 README 和快速上手中的“首次上传待完成”提示，并记录实际发布链接与验证运行。后续版本重复 TestPyPI → GitHub Release 流程。
+发布后同步 README、快速上手和实际安装验证记录。后续版本重复 TestPyPI → GitHub Release 流程。
+
+PyPI 项目页面的描述和长文来自发行包元数据。GitHub 上修改 `README.pypi.md` 或 `pyproject.toml` 不会自动改写已发布的 `0.3.0` 页面；这些内容随下一版本发行更新。GitHub README 和文档站则随 main 更新。
 
 ## 本地排查
 

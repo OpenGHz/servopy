@@ -352,5 +352,38 @@ fresh cache: the basic example completed 1,200 steps in HOLD with less than
 Panda demo downloaded and verified the separate model, completed its
 18-second trajectory with less than 1 mm final error, and reloaded the
 cached model with network calls disabled. The installed package contains
-no Panda ZIP. This validates the TestPyPI-served artifact; production PyPI
-publication remains a separate step.
+no Panda ZIP. This validated the TestPyPI-served artifact; the subsequent
+production publication is recorded below.
+
+## PyPI publication and installation
+
+Date: 2026-09-18. Publishing the GitHub Release `v0.3.0` triggered
+[the production workflow](https://github.com/OpenGHz/servopy/actions/runs/35331455567)
+for commit `9d11807a900cbcd438f254e7a8253b31695d630f`. All gates and the
+PyPI publishing job succeeded. The [production PyPI release](https://pypi.org/project/servo-py/0.3.0/)
+contains ten Linux wheels and one sdist.
+
+A fresh CPython 3.12 / Linux x86_64 virtual environment installed
+`servo-py[mujoco]==0.3.0` with `--only-binary=:all:` and an explicit
+`https://pypi.org/simple` index. `pip check` passed. The installed-wheel smoke
+check ran outside the checkout and passed the basic example, Panda entry
+point, a full headless simulation, first-use model download and checksum,
+and cached model loading with network calls disabled. The installed wheel
+contains no Panda archive.
+
+## Realtime control documentation
+
+Date: 2026-09-18. Documentation now presents ServoPy as realtime joint and
+Cartesian servo control: targets and measured feedback enter a continuous loop,
+and each control cycle updates the next reference interval. The hard real-time
+limitations in the execution contract remain explicit.
+
+All ten marked Python documentation examples passed, including the new
+`realtime-target-stream` example. Using an integer simulation clock and ideal
+feedback, it publishes commands at 20 Hz into a 100 Hz control loop, changes
+the requested direction during motion, then stops publishing. The example
+checks both directions, command expiry, and final HOLD. It is a behavior
+demonstration, not a wall-clock latency or hardware-frequency benchmark.
+
+The documentation checker passed link, API, configuration, CLI and example
+checks across 31 Markdown pages. The strict MkDocs build also passed.

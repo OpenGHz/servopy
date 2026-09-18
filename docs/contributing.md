@@ -63,7 +63,7 @@ python -m mkdocs serve
 
 ## 文档写法
 
-1. README 负责项目定位、第一条可运行命令和任务入口。参数细节放参考页。
+1. README 负责项目定位、第一条可运行命令和任务入口。定位统一为“实时关节与笛卡尔伺服控制”：先解释持续更新目标、实际反馈与逐周期输出，再介绍求解器、约束和平滑。参数细节放参考页。
 2. 教程说明目标、前置环境、完整操作、预期结果与下一步。需要外部对象的代码明确标为接入片段。
 3. 默认值只在配置参考集中维护；新增公共名称时同步 API 和诊断页。
 4. 完整可运行 Python 块前加 `<!-- runnable: unique-name -->`，用检查脚本执行。示例默认从仓库根目录运行。
@@ -76,6 +76,8 @@ python -m mkdocs serve
 Logo 位于 `docs/assets/brand/`：`logo-light.svg` 与 `logo-dark.svg` 用于 README 的 `<picture>`，`mark.svg` 用作文档站图标。使用仓库内的原生 SVG，无需外部图片服务；标题和替代文本同样使用 ServoPy。
 
 ## 文档结构参考
+
+实时控制的介绍顺序参考 [MoveIt Realtime Servo](https://moveit.picknik.ai/main/doc/examples/realtime_servo/realtime_servo_tutorial.html)：先说明持续控制与应用场景，再介绍控制接口和支持功能。ServoPy 的功能与实时性边界以本项目实现、执行契约和验证记录为准。
 
 本轮结构整理参考了 [Ruckig](https://github.com/pantor/ruckig) 的入门示例、[Pink](https://github.com/pink-kinematics/pink) 的任务与示例入口、[Pinocchio](https://github.com/stack-of-tasks/pinocchio) 的学习资源导航，以及 [MuJoCo](https://mujoco.readthedocs.io/en/stable/overview.html) 的概念与接口分层。内容按 [Diátaxis](https://diataxis.fr/) 的学习、操作、参考、解释四种需求组织；技术说明与代码均以本仓库实际实现为准。
 

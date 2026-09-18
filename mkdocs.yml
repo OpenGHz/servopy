@@ -1,6 +1,6 @@
 site_name: ServoPy
 site_url: https://openghz.github.io/servopy/
-site_description: 独立于 ROS 的 C++ / Python 在线伺服，从入门到设备接入
+site_description: Realtime robot control — 独立于 ROS 的 C++ / Python 实时关节与笛卡尔伺服控制
 repo_url: https://github.com/OpenGHz/servopy
 repo_name: OpenGHz/servopy
 edit_uri: edit/main/docs/
@@ -54,6 +54,7 @@ nav:
   - 文档首页: index.md
   - 开始使用:
       - 快速上手: getting-started.md
+      - 实时伺服控制: realtime-servo.md
       - 模型、目标与参考: concepts.md
       - Panda 仿真: mujoco-panda.md
   - 控制教程:
@@ -61,7 +62,7 @@ nav:
       - Python 位置 IK: python-ik.md
       - Ruckig 平滑: smoothing.md
       - 微分 IK、QP 与零空间: solvers.md
-      - 周期调度与设备: runtime.md
+      - 实时循环与设备: runtime.md
       - 外部目标、记录与对照: recording.md
       - 原生 C++: cpp.md
   - 参考与排障:

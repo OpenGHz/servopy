@@ -1,8 +1,8 @@
 # Panda / MuJoCo 仿真
 
-**目标：** 通过真实动力学反馈比较三条控制路径，并学会查看跟踪结果。前置：安装 `.[mujoco]`。所有命令从仓库根目录执行。
+**目标：** 在 MuJoCo 中运行实时伺服控制循环，用实际动力学反馈持续跟踪目标，并比较三条控制路径。伺服循环为 100 Hz，物理积分为 500 Hz。前置：安装 `.[mujoco]`。所有源码命令从仓库根目录执行。
 
-通过 PyPI 安装后，无需源码仓库：安装 `servo-py[mujoco]`，将本页 `python examples/mujoco_panda.py` 替换为 **`servo-py-panda`** 即可，参数完全相同。Panda 模型单独下载，不包含在 wheel 或源码发行包中。首次上传状态见[安装指南](getting-started.md)。
+通过 PyPI 安装后，无需源码仓库：安装 `servo-py[mujoco]`，将本页 `python examples/mujoco_panda.py` 替换为 **`servo-py-panda`** 即可，参数完全相同。Panda 模型单独下载，不包含在 wheel 或源码发行包中。安装范围见[安装指南](getting-started.md)。
 
 ## 先运行默认示例
 
@@ -12,6 +12,8 @@ python examples/mujoco_panda.py
 ```
 
 默认打开 viewer，演示 18 秒，最后一秒发送 Stop。空格暂停/继续，关闭窗口或 Ctrl+C 退出。橙色为目标、青色为实际 TCP 路径。
+
+内置目标随仿真时间变化；每个控制周期都读取积分后的 qpos/qvel 并重新计算输出。使用[实时外部目标](#外部目标与控制日志)可在运行中改变目标，体验与应用目标源相连的闭环。headless 默认按仿真时间运行，`--target-stdin` 则按墙钟节拍推进；频率与实时性的区别见[实时伺服教程](realtime-servo.md)。
 
 ![Panda 默认力矩模式](media/panda-servo.gif)
 
