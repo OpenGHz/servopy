@@ -8,7 +8,7 @@
 
 Linux 发布矩阵为常规 CPython 3.10–3.14、x86_64 / ARM64、glibc 2.28 或更新。匹配 wheel 的用户不需要安装 C++ 编译器、CMake 或 Eigen。Ubuntu 22.04 / 24.04 的默认 Python 满足要求；Ubuntu 20.04 默认 Python 3.8 不满足，需要另行准备 Python 3.10 或更新环境。
 
-**首次 PyPI 上传待维护者完成账号配置。** 以下命令在发布后可用；当前可先按下一节从源码安装，或按[发布指南](publishing.md)验证 CI 产物。
+**首次 PyPI 上传尚未完成。** 以下命令在发布后可用；当前可先按下一节从源码安装，或按[发布指南](publishing.md)验证 CI 产物。
 
 ```bash
 python3 -m venv .venv
@@ -106,6 +106,8 @@ python examples/mujoco_panda.py --headless --control-mode joint-position
 默认 18 秒仿真，最后进入停止阶段。viewer 中橙色是目标路径，青色是实际 TCP；按空格暂停。切换模式与记录视频见 [Panda 教程](mujoco-panda.md)。
 
 wheel 用户无需克隆仓库：安装 `servo-py[mujoco]` 后，执行 `servo-py-panda --control-mode joint-position` 或 `servo-py-panda --headless`。其他示例也可以把 `python examples/name.py` 换成 `python -m servo_py.examples.name`。
+
+Panda 模型不在 wheel 或源码发行包中；安装后的示例首次运行时下载约 5 MB 并缓存，之后无需联网。基础安装和二维 URDF 示例不会下载它。无网络环境可指定本地模型压缩包，见[模型下载与离线运行](mujoco-panda.md#模型下载与离线运行)。
 
 ## 5. 写自己的循环
 

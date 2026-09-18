@@ -10,7 +10,7 @@ from __future__ import annotations
 import argparse
 from collections import Counter
 from contextlib import ExitStack, contextmanager, nullcontext
-import hashlib
+from io import BytesIO
 import json
 import os
 from pathlib import Path
@@ -32,6 +32,7 @@ from servo_py import (
     SafetyFlag, Servo, ServoConfig, StopCommand, BoxQPSolver, RuckigSmoothing,
     LatestCommand, JsonlRecorder, command_from_dict,
 )
+from servo_py.examples._panda_assets import panda_archive
 
 ASSETS = Path(__file__).resolve().parent / "assets"
 CONTROL_DT = 0.01
@@ -44,15 +45,12 @@ def load_panda(*, width=960, height=640, actuator_mode="torque"):
     """Load the pinned, unmodified Menagerie assets from an in-memory ZIP.
 
     Scene and actuator changes below are specific to this example. The source
-    MJCF, original meshes, license and per-file hashes remain in examples/assets.
+    MJCF and meshes are loaded from the checkout, a verified user-supplied ZIP,
+    or the download cache. Licenses and provenance remain in examples/assets.
     """
     if actuator_mode not in ("torque", "position"):
         raise ValueError("actuator_mode must be torque or position")
-    archive_path = ASSETS / "panda.zip"
-    manifest = json.loads((ASSETS / "panda-source.json").read_text())
-    if hashlib.sha256(archive_path.read_bytes()).hexdigest() != manifest["archive_sha256"]:
-        raise ValueError("Panda asset archive checksum mismatch")
-    with zipfile.ZipFile(archive_path) as archive:
+    with zipfile.ZipFile(BytesIO(panda_archive(ASSETS))) as archive:
         assets = {name: archive.read(name) for name in archive.namelist()}
     root = ET.fromstring(assets["panda.xml"])
     root.find("option").set("timestep", str(PHYSICS_DT))

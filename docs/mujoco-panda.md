@@ -2,7 +2,7 @@
 
 **目标：** 通过真实动力学反馈比较三条控制路径，并学会查看跟踪结果。前置：安装 `.[mujoco]`。所有命令从仓库根目录执行。
 
-通过 PyPI 安装后，无需源码仓库：安装 `servo-py[mujoco]`，将本页 `python examples/mujoco_panda.py` 替换为 **`servo-py-panda`** 即可，参数完全相同。模型资产已包含在 wheel 中。首次上传状态见[安装指南](getting-started.md)。
+通过 PyPI 安装后，无需源码仓库：安装 `servo-py[mujoco]`，将本页 `python examples/mujoco_panda.py` 替换为 **`servo-py-panda`** 即可，参数完全相同。Panda 模型单独下载，不包含在 wheel 或源码发行包中。首次上传状态见[安装指南](getting-started.md)。
 
 ## 先运行默认示例
 
@@ -16,6 +16,20 @@ python examples/mujoco_panda.py
 ![Panda 默认力矩模式](media/panda-servo.gif)
 
 无桌面机器运行 `python examples/mujoco_panda.py --headless`。不录视频的 headless 模式不需要渲染上下文。
+
+## 模型下载与离线运行
+
+安装后的 Panda 示例首次启动时，从固定 Git 提交下载约 **5 MB** 的模型压缩包，验证 SHA-256 后存入 `~/.cache/servo-py/panda/<sha256>/panda.zip`。若设置了绝对路径的 `XDG_CACHE_HOME`，则使用该目录下的 `servo-py/panda/`。后续直接读取缓存；损坏的缓存会重新下载并校验。
+
+`pip install`、`import servo_py`、基础 URDF 示例和 `servo-py-panda --help` 都不会下载模型。Git 克隆可直接使用 `examples/assets/panda.zip`，因此已有的源码示例仍可离线运行。
+
+离线机器可从联网机器复制仓库中的压缩包，或者保存这个[固定版本的模型压缩包](https://raw.githubusercontent.com/OpenGHz/servopy/ede055d13e4c5f8a7475595ed90a2dc21bcdc2bb/examples/assets/panda.zip)，然后执行：
+
+```bash
+SERVO_PY_PANDA_ARCHIVE=/path/to/panda.zip servo-py-panda --headless
+```
+
+此路径优先于仓库文件和缓存，仍须通过内置 SHA-256 校验；若路径或校验错误，不会改为联网下载。来源清单和许可证随 Python 包提供；模型在内存中读取，不向安装目录写文件，也不解压网格到磁盘。
 
 ## 三种控制模式
 

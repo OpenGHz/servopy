@@ -239,6 +239,9 @@ implementation was not changed by this visual update.
 
 ## Linux distribution preparation
 
+This section records the initial packaging build. Its bundled-Panda layout is
+superseded by [the smaller distribution below](#panda-model-download-and-smaller-distributions).
+
 Date: 2026-09-18. The Python distribution remains `servo-py` 0.3.0 and the
 import name remains `servo_py`. Packaging now includes example modules, URDFs,
 the pinned Panda archive, its manifest and licenses, plus a `servo-py-panda`
@@ -286,3 +289,32 @@ run's `publish-distributions` artifact contains the validated files. Its
 TestPyPI and PyPI jobs were skipped because this was a main-branch build;
 this record does not claim that the package has been uploaded to either index.
 Account setup and publication steps are in [the release guide](publishing.md).
+
+## Panda model download and smaller distributions
+
+Date: 2026-09-18. At the user's request, both wheels and sdists now exclude
+`examples/assets/panda.zip`. The example code, small URDFs, Panda license and
+provenance manifest remain available. The installed Panda demo downloads the
+archive from a fixed Git commit, verifies its SHA-256, and caches it outside
+the package directory. A Git checkout or `SERVO_PY_PANDA_ARCHIVE` can supply
+the same archive offline.
+
+Local CPython 3.12 / Linux x86_64 validation:
+
+- A wheel built from the sdist is about **0.42 MB**, down from **5.45 MB**
+  (approximately **92% smaller**). Inspection confirmed that neither archive
+  contains `panda.zip`; this comparison excludes runtime dependencies.
+- **188 tests passed**, including ten new cases for local/offline archives,
+  checksum failures, bounded downloads, cache reuse and repair, network
+  errors, and temporary-file cleanup after a failed cache update.
+- The installed-wheel smoke check ran from a temporary directory and an
+  empty model cache. The basic example and Panda `--help` did not create a
+  cache. The headless Panda run downloaded and verified the model, completed
+  the default trajectory with less than 1 mm final position error, and a
+  subsequent model load succeeded with the network function disabled.
+- The nine executable documentation examples and strict MkDocs build passed.
+
+The release gate now requires the manifest and model loader while rejecting
+Panda ZIPs in either distribution. First use of the installed Panda demo
+requires network access or a separately supplied archive; importing ServoPy
+and using the core API do not fetch the model.

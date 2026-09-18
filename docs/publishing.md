@@ -1,6 +1,6 @@
 # PyPI 发布
 
-发行包名为 **`servo-py`**，Python 导入名为 **`servo_py`**，GitHub 仓库名为 **`servopy`**。当前版本 `0.3.0` 的发布流程已加入仓库；首次上传仍需要维护者配置 TestPyPI / PyPI Trusted Publisher。构建成功不表示已经公开发布。
+发行包名为 **`servo-py`**，Python 导入名为 **`servo_py`**，GitHub 仓库名为 **`servopy`**。当前版本 `0.3.0` 的发布流程已加入仓库；首次上传尚未完成。构建成功不表示已经公开发布。
 
 ## 发行范围
 
@@ -11,7 +11,7 @@
 | 二进制基线 | `manylinux_2_28`，glibc 2.28 或更新 |
 | 产物 | 10 个 wheel、1 个 sdist |
 | Ubuntu | 22.04 / Python 3.10、24.04 / Python 3.12 的 x86_64 安装检查；24.04 / Python 3.12 的 ARM64 安装检查 |
-| wheel 内容 | C++ 扩展、Python API、示例、URDF、Panda 模型、来源记录和许可证 |
+| wheel 内容 | C++ 扩展、Python API、示例、小型 URDF、Panda 来源清单和许可证；模型压缩包不包含在 wheel 或 sdist 中 |
 
 Ubuntu 20.04 的 glibc 满足二进制基线，但默认 Python 3.8 不满足项目的 Python 要求，需另外准备 Python 3.10 或更新环境。其他 glibc / Python 组合是否可用，还取决于运行依赖；不将所有 Ubuntu 版本或其他 Linux 发行版写为已验证。
 
@@ -21,13 +21,13 @@ Ubuntu 20.04 的 glibc 满足二进制基线，但默认 Python 3.8 不满足项
 
 [Python distributions 工作流](https://github.com/OpenGHz/servopy/actions/workflows/release.yml) 在 pull request、main 推送、手动运行和 GitHub Release 发布时执行：
 
-首次完整[验证运行](https://github.com/OpenGHz/servopy/actions/runs/35324779011)已通过，生成 10 个 wheel 和 1 个 sdist；各 Ubuntu 环境的测试数量及条件见[验证记录](validation.md#linux-distribution-preparation)。这次 main 构建没有向 TestPyPI 或 PyPI 上传。
+首次完整[验证运行](https://github.com/OpenGHz/servopy/actions/runs/35324779011)已通过，生成 10 个 wheel 和 1 个 sdist；这是移除内置 Panda 模型之前的历史构建。当前打包方式及测试记录见[模型按需下载验证](validation.md#panda-model-download-and-smaller-distributions)。首次 main 构建没有向 TestPyPI 或 PyPI 上传。
 
 1. 检查 pyproject、CMake 和 C++ 绑定中的版本一致，构建 sdist 并检查 PyPI 元数据。
 2. 在原生 x86_64 / ARM64 runner 的 manylinux_2_28 容器内，从该 sdist 构建所有 wheel，并由 auditwheel 检查、修复依赖。
 3. 在各 Python 版本安装生成的 wheel，运行基础测试；x86_64 还运行 Ruckig 回归测试。
-4. 在上述 Ubuntu 环境强制只安装二进制包，运行 MuJoCo / Pinocchio 测试，x86_64 加入 Ruckig。另在临时空目录运行包内示例和 `servo-py-panda --headless`，检查无需源码仓库即可使用模型。
-5. 确认全部 10 个 wheel 和 sdist 齐全、版本和平台标签正确、许可证及模型已包含，生成 `publish-distributions` artifact。
+4. 在上述 Ubuntu 环境强制只安装二进制包，运行 MuJoCo / Pinocchio 测试，x86_64 加入 Ruckig。另在临时空目录运行包内示例和 `servo-py-panda --headless`，验证模型按需下载、校验、缓存及断网后复用。基础示例和 `--help` 不应下载模型。
+5. 确认全部 10 个 wheel 和 sdist 齐全、版本和平台标签正确、许可证与来源清单存在、Panda 压缩包已排除，生成 `publish-distributions` artifact。
 
 main 推送和普通手动构建只生成产物。**手动选择 `testpypi`** 才上传测试站；**发布 GitHub Release** 才上传正式 PyPI。两种上传都依赖所有检查成功，且仅发布作业有 `id-token: write` 权限。
 

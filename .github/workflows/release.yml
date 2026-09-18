@@ -149,7 +149,7 @@ jobs:
           python -m pip check
       - name: Test installed extension and optional backends
         run: python -m pytest
-      - name: Run bundled examples outside the checkout
+      - name: Check installed examples and on-demand Panda download/cache
         run: python scripts/smoke_wheel.py --mujoco
 
   verify:

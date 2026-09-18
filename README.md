@@ -47,7 +47,7 @@ NumPy is the only required third-party Python runtime dependency. Building from 
 
 ## Quick start
 
-You need **Python 3.10 or newer**. The Linux release workflow builds wheels for CPython 3.10–3.14 on x86_64 and ARM64 (glibc 2.28+), including the examples and models. **The first PyPI upload is pending maintainer account setup**; see the [release guide](https://openghz.github.io/servopy/publishing/).
+You need **Python 3.10 or newer**. The Linux release workflow builds wheels for CPython 3.10–3.14 on x86_64 and ARM64 (glibc 2.28+), including example code and small URDFs. Panda model assets are downloaded only when running that demo. **The first PyPI upload is pending**; see the [release guide](https://openghz.github.io/servopy/publishing/).
 
 Once the release is available, install in a virtual environment without a C++ compiler:
 
@@ -115,7 +115,7 @@ python examples/mujoco_panda.py --control-mode joint-position
 | `joint-position` | Joint target → joint reference → position actuator |
 | `ik-position` | Pose → position IK → joint reference → position actuator |
 
-The viewer runs an 18-second simulation. Press **Space** to pause, or add `--headless` to run without a display. Model assets are bundled with both the source and wheel. For a PyPI installation, use `python -m pip install 'servo-py[mujoco]'` and `servo-py-panda --control-mode joint-position`. The [Panda guide](https://openghz.github.io/servopy/mujoco-panda/) covers Ruckig smoothing, external targets, recording and measured tracking behavior.
+The viewer runs an 18-second simulation. Press **Space** to pause, or add `--headless` to run without a display. Wheels and source distributions omit the Panda model; the installed demo downloads about 5 MB once, verifies its checksum, and caches it for offline reuse. A Git checkout can use its existing archive. For a PyPI installation, use `python -m pip install 'servo-py[mujoco]'` and `servo-py-panda --control-mode joint-position`. The [Panda guide](https://openghz.github.io/servopy/mujoco-panda/) covers offline model paths, Ruckig smoothing, external targets, recording and measured tracking behavior.
 
 ## Documentation
 
@@ -150,4 +150,4 @@ python -m mkdocs serve
 
 ## License
 
-ServoPy is [MIT-licensed](LICENSE). Bundled Panda assets are Apache-2.0; their provenance and dependency notices are in [NOTICE](NOTICE). ServoPy is an independent project and does not claim MoveIt compatibility.
+ServoPy is [MIT-licensed](LICENSE). Panda assets are Apache-2.0; their provenance and dependency notices are in [NOTICE](NOTICE). ServoPy is an independent project and does not claim MoveIt compatibility.

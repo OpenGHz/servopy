@@ -47,7 +47,7 @@
 
 ## 快速上手
 
-需要 **Python 3.10 或更新版本**。Linux 发布流水线为 CPython 3.10–3.14、x86_64 / ARM64（glibc 2.28+）构建包含示例和模型的 wheel。**首次 PyPI 上传仍待维护者完成账号配置**，步骤见[发布指南](https://openghz.github.io/servopy/publishing/)。
+需要 **Python 3.10 或更新版本**。Linux 发布流水线为 CPython 3.10–3.14、x86_64 / ARM64（glibc 2.28+）构建包含示例代码和小型 URDF 的 wheel，Panda 模型仅在运行该示例时下载。**首次 PyPI 上传尚未完成**，步骤见[发布指南](https://openghz.github.io/servopy/publishing/)。
 
 发布完成后，可在虚拟环境直接安装，无需 C++ 编译器：
 
@@ -115,7 +115,7 @@ python examples/mujoco_panda.py --control-mode joint-position
 | `joint-position` | 关节目标 → 关节参考 → 位置执行器 |
 | `ik-position` | 位姿 → 位置 IK → 关节参考 → 位置执行器 |
 
-默认运行 18 秒仿真，按**空格**暂停，无桌面时加 `--headless`。模型资产随源码和 wheel 提供。通过 PyPI 安装时，使用 `python -m pip install 'servo-py[mujoco]'` 和 `servo-py-panda --control-mode joint-position` 即可运行。[Panda 教程](https://openghz.github.io/servopy/mujoco-panda/)进一步介绍 Ruckig 平滑、外部目标、录制和实际跟踪表现。
+默认运行 18 秒仿真，按**空格**暂停，无桌面时加 `--headless`。wheel 和源码发行包不包含 Panda 模型；安装后的示例首次运行时下载约 5 MB，经校验后缓存，之后可离线复用。Git 克隆可直接使用仓库已有压缩包。通过 PyPI 安装时，使用 `python -m pip install 'servo-py[mujoco]'` 和 `servo-py-panda --control-mode joint-position` 即可运行。[Panda 教程](https://openghz.github.io/servopy/mujoco-panda/)进一步介绍离线模型路径、Ruckig 平滑、外部目标、录制和实际跟踪表现。
 
 ## 文档
 

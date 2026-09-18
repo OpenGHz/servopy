@@ -41,11 +41,13 @@ def check_artifacts(directory, version):
         with zipfile.ZipFile(path) as archive:
             names = archive.namelist()
             for suffix in ("servo_py/examples/mujoco_panda.py", "servo_py/examples/planar2.urdf",
-                           "servo_py/examples/assets/panda.zip", "servo_py/py.typed",
+                           "servo_py/examples/assets/panda-source.json", "servo_py/examples/_panda_assets.py",
+                           "servo_py/py.typed",
                            "/licenses/LICENSE", "/licenses/NOTICE", "/licenses/LICENSES/Eigen-MPL2.txt",
                            "/licenses/LICENSES/pybind11-BSD.txt",
                            "/licenses/examples/assets/PANDA-LICENSE.txt"):
                 assert any(name.endswith(suffix) for name in names), (path.name, suffix)
+            assert not any(name.endswith("/panda.zip") for name in names), path.name
             metadata = BytesParser().parsebytes(archive.read(next(name for name in names if name.endswith(".dist-info/METADATA"))))
             assert metadata["Version"] == version and metadata["Requires-Python"] == ">=3.10", path.name
             assert any(name.startswith("servo_py/_core.") and name.endswith(".so") for name in names), path.name
@@ -55,8 +57,9 @@ def check_artifacts(directory, version):
     with tarfile.open(sdists[0]) as archive:
         names = archive.getnames()
         for suffix in ("/pyproject.toml", "/CMakeLists.txt", "/cpp/bindings.cpp", "/README.pypi.md",
-                       "/examples/assets/panda.zip", "/src/servo_py/examples/__init__.py", "/scripts/smoke_wheel.py"):
+                       "/examples/assets/panda-source.json", "/src/servo_py/examples/__init__.py", "/scripts/smoke_wheel.py"):
             assert any(name.endswith(suffix) for name in names), suffix
+        assert not any(name.endswith("/panda.zip") for name in names), "Panda archive must not be in the sdist"
     print("Verified 10 manylinux_2_28 wheels and one source distribution")
 
 

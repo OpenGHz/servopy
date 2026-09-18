@@ -27,7 +27,9 @@ python -m pip install --only-binary=:all: 'servo-py[mujoco]'
 servo-py-panda --control-mode joint-position
 ```
 
-For a machine without a desktop, run `servo-py-panda --headless`. The default demo runs an 18-second simulation. Choose `torque`, `joint-position` or `ik-position`; press Space to pause the viewer. The model archive, provenance and licenses are bundled in the wheel. Video recording also needs a working graphics backend.
+For a machine without a desktop, run `servo-py-panda --headless`. The default demo runs an 18-second simulation. Choose `torque`, `joint-position` or `ik-position`; press Space to pause the viewer. Video recording also needs a working graphics backend.
+
+The wheel and source distribution **do not contain Panda model assets**. On first use the demo downloads a fixed, approximately 5 MB archive, verifies its SHA-256, and caches it under `~/.cache/servo-py` (or `$XDG_CACHE_HOME/servo-py`). Further runs reuse the cache offline. Installing or importing ServoPy, the basic URDF example and `servo-py-panda --help` do not download this model. For offline setup, supply the pinned archive via `SERVO_PY_PANDA_ARCHIVE=/path/to/panda.zip`; see the [model setup guide](https://openghz.github.io/servopy/mujoco-panda/#模型下载与离线运行). The small provenance manifest and license are included in the package.
 
 ## Optional dependencies
 
@@ -43,4 +45,4 @@ Source builds require Python 3.10 or newer, a compiler and standard library supp
 
 ServoPy generates references; your application owns feedback, actuator commands and device stopping. Physical-robot validation, geometric collision checking and hard real-time execution are outside the current verified scope. See the [design contract](https://openghz.github.io/servopy/design/) and [validation record](https://openghz.github.io/servopy/validation/).
 
-ServoPy is [MIT-licensed](https://github.com/OpenGHz/servopy/blob/main/LICENSE). Bundled Panda assets are Apache-2.0; see [NOTICE](https://github.com/OpenGHz/servopy/blob/main/NOTICE). This is an independent project and does not claim MoveIt compatibility.
+ServoPy is [MIT-licensed](https://github.com/OpenGHz/servopy/blob/main/LICENSE). The separately downloaded Panda assets are Apache-2.0; see [NOTICE](https://github.com/OpenGHz/servopy/blob/main/NOTICE). This is an independent project and does not claim MoveIt compatibility.

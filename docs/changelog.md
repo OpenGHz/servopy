@@ -5,10 +5,11 @@
 ## 首次 PyPI 发布准备
 
 - 增加 manylinux_2_28 的 CPython 3.10–3.14 / x86_64、ARM64 wheel 流水线，从 sdist 构建并验证完整产物。
-- wheel 包含示例、URDF 和带许可证的 Panda 资产，新增 `servo-py-panda` 入口及 `python -m servo_py.examples.track_pose`。
+- wheel 包含示例和小型 URDF，新增 `servo-py-panda` 入口及 `python -m servo_py.examples.track_pose`。
+- 从 wheel 和 sdist 排除 Panda 模型压缩包；示例首次使用时下载固定模型，经 SHA-256 校验后缓存，支持离线档案路径与缓存复用。
 - 可选 Ruckig 从 0.12.2 升至 0.19.4，覆盖较新 Python 的上游 x86_64 wheel；ARM64 不承诺该可选项免编译。
 - 增加 Ubuntu 二进制安装检查、独立 PyPI README，以及 TestPyPI / PyPI Trusted Publishing 流程。
-- 首次上传仍待维护者完成账号配置，步骤见 [PyPI 发布](publishing.md)。
+- 首次上传尚未完成，步骤见 [PyPI 发布](publishing.md)。
 
 ## 文档更新
 

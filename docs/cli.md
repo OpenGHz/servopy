@@ -6,7 +6,7 @@
 
 `python examples/mujoco_panda.py [options]`，需安装 `.[mujoco]`。
 
-发行包对应 `python -m pip install 'servo-py[mujoco]'` 和 `servo-py-panda [options]`。所有参数一致，URDF 和 Panda 资产随包提供。
+发行包对应 `python -m pip install 'servo-py[mujoco]'` 和 `servo-py-panda [options]`。所有参数一致，小型 URDF 随包提供；Panda 模型首次运行时单独下载并缓存。离线时可设置 `SERVO_PY_PANDA_ARCHIVE=/path/to/panda.zip`，见[模型下载](mujoco-panda.md#模型下载与离线运行)。
 
 | 参数 | 默认值 | 说明 |
 |---|---|---|

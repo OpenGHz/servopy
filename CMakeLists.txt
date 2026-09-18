@@ -33,10 +33,10 @@ if(SERVO_PY_BUILD_PYTHON)
   target_link_libraries(_core PRIVATE servo_core)
   install(TARGETS _core LIBRARY DESTINATION servo_py RUNTIME DESTINATION servo_py)
   # Keep one source for checkout examples and installed Python modules. Include
-  # the URDFs, pinned model archive, provenance and licenses in every wheel.
+  # the small URDFs, provenance and licenses; Panda meshes are fetched on demand.
   install(DIRECTORY examples/ DESTINATION servo_py/examples
     FILES_MATCHING PATTERN "*.py" PATTERN "*.urdf"
-    PATTERN "*.zip" PATTERN "*.json" PATTERN "*.txt" PATTERN "*.md"
+    PATTERN "*.json" PATTERN "*.txt" PATTERN "*.md"
     PATTERN "__pycache__" EXCLUDE)
 endif()
 

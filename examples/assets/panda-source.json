@@ -2,6 +2,8 @@
   "source": "https://github.com/google-deepmind/mujoco_menagerie/tree/71f066ad0be9cd271f7ed58c030243ef157af9f4/franka_emika_panda",
   "revision": "71f066ad0be9cd271f7ed58c030243ef157af9f4",
   "archive_sha256": "97f83635c80e242ed44d3b33bfe2f234a97e55e18b5edf5af5fb2c450f5720cd",
+  "archive_url": "https://raw.githubusercontent.com/OpenGHz/servopy/ede055d13e4c5f8a7475595ed90a2dc21bcdc2bb/examples/assets/panda.zip",
+  "archive_bytes": 5036019,
   "files": [
     {
       "path": "panda.xml",
