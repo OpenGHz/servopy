@@ -19,6 +19,43 @@ python examples/mujoco_panda.py
 
 无桌面机器运行 `python examples/mujoco_panda.py --headless`。不录视频的 headless 模式不需要渲染上下文。
 
+## 拖动目标实时跟随
+
+**此功能已加入 main 源码，已发布的 PyPI 0.3.0 尚不包含 `--interactive-target`。** 先在最新仓库安装 `.[mujoco]`，再运行：
+
+```bash
+python examples/mujoco_panda.py --interactive-target
+```
+
+viewer 中的橙色球与 RGB 坐标轴表示目标位姿。目标初始位于实际 TCP，已自动选中；机械臂根据每个周期的物理反馈尝试跟随。鼠标拖动只改变目标，不直接修改机器人关节状态。
+
+| 操作 | 行为 |
+|---|---|
+| Ctrl + 鼠标右键拖动 | 平移目标 |
+| Ctrl + 鼠标左键拖动 | 旋转目标；RGB 轴显示目标朝向 |
+| 拖动时加 Shift | 切换平移平面或旋转方向 |
+| 双击橙色目标 | 重新选中目标，避免误拖动机器人本体 |
+| F6 | 将目标移回当前测量 TCP 并重新选中；不复位机器人或 Servo |
+| 空格 | 暂停/继续；暂停期间也可以拖动和复位目标 |
+| 关闭窗口 / Ctrl+C | 结束仿真 |
+
+松开鼠标后，当前目标仍是本地控制任务的有效目标，每周期继续跟踪。交互模式默认持续运行到退出，不受普通演示的 18 秒限制；加 `--duration 60` 可运行 60 秒并在最后一秒制动。最近 20 秒的轨迹用于显示，汇总指标仍覆盖整个会话；可用 `--log` 保存全部控制记录。
+
+支持两种位姿控制路径：
+
+```bash
+# 位姿 → 微分 IK → 力矩控制（默认）
+python examples/mujoco_panda.py --interactive-target
+# 位姿 → 位置 IK → 关节位控
+python examples/mujoco_panda.py --interactive-target --control-mode ik-position
+```
+
+直接 `joint-position` 模式接收关节角，不能与拖动位姿目标组合；应选择 `ik-position`。`--interactive-target` 与 `--target-stdin`、`--targets` 互斥，也不能与 `--headless` 组合。源码安装后，`servo-py-panda --interactive-target` 同样可用。
+
+请先在末端附近小幅拖动。目标变化仍受速度、加速度、奇异性和可选 jerk 约束；拖得过远或进入不可达姿态时不保证跟上。IK 位控遇到无解、越限或关节分支跳变时会制动，可拖回可达范围或按 F6；原有位控重力偏差仍存在。限时会话结束才会把 `completed` 设为 true，手动关闭无限时会话时该字段为 false。
+
+交互使用 MuJoCo 的[原生鼠标扰动](https://mujoco.readthedocs.io/en/stable/programming/visualization.html#perturbations)移动 mocap 目标，并在每次控制计算前同步 viewer 输入。同步和线程约定见[官方 passive viewer 文档](https://mujoco.readthedocs.io/en/stable/python.html#passive-viewer)。
+
 ## 模型下载与离线运行
 
 安装后的 Panda 示例首次启动时，从固定 Git 提交下载约 **5 MB** 的模型压缩包，验证 SHA-256 后存入 `~/.cache/servo-py/panda/<sha256>/panda.zip`。若设置了绝对路径的 `XDG_CACHE_HOME`，则使用该目录下的 `servo-py/panda/`。后续直接读取缓存；损坏的缓存会重新下载并校验。

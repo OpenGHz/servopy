@@ -124,6 +124,19 @@ servo-py-panda --control-mode joint-position
 
 默认运行 18 秒，伺服循环为 100 Hz、物理仿真为 500 Hz。每个伺服周期读取 MuJoCo 反馈并更新控制参考。按**空格**暂停，无桌面时加 `--headless`。使用 `--target-stdin` 可接入实时 JSONL 目标流，见[流式目标输入](https://openghz.github.io/servopy/recording/#panda-外部目标与回放)。
 
+### 在 viewer 中拖动目标
+
+当前 `main` 源码已提供交互位姿跟踪；已发布的 PyPI 0.3.0 尚不包含此选项。在仓库目录运行：
+
+```bash
+python -m pip install '.[mujoco]'
+python examples/mujoco_panda.py --interactive-target
+```
+
+橙色目标初始位于实际 TCP，并已选中。按住 **Ctrl + 鼠标右键**拖动平移，**Ctrl + 鼠标左键**拖动旋转，**Shift** 切换拖动平面/方向。机械臂持续跟随该目标，松开鼠标后仍保持跟踪。双击橙色目标可重新选中；**F6** 将目标移回当前 TCP，**空格**暂停/继续。
+
+交互模式默认持续运行到关闭窗口或 Ctrl+C。加 `--control-mode ik-position` 可使用位置 IK 与位控执行器；加 `--duration 60` 可限时运行。模式限制与不可达目标行为见[交互目标教程](https://openghz.github.io/servopy/mujoco-panda/#拖动目标实时跟随)。
+
 wheel 和源码发行包不包含 Panda 模型；安装后的示例首次运行时下载约 5 MB，经校验后缓存，之后可离线复用。Git 克隆可直接使用仓库已有压缩包。[Panda 教程](https://openghz.github.io/servopy/mujoco-panda/)进一步介绍离线模型路径、Ruckig 平滑、外部目标、录制和实际跟踪表现。
 
 ## 文档

@@ -124,6 +124,19 @@ servo-py-panda --control-mode joint-position
 
 The viewer runs an 18-second simulation with a 100 Hz servo loop and 500 Hz physics. Each servo cycle reads MuJoCo feedback and updates the control reference. Press **Space** to pause, or add `--headless` to run without a display. Use `--target-stdin` to drive it with a live JSONL target stream; see [streaming targets](https://openghz.github.io/servopy/recording/#panda-外部目标与回放).
 
+### Drag a target in the viewer
+
+The current `main` checkout adds interactive pose tracking; this option is not included in the published PyPI 0.3.0 package yet. From the repository, run:
+
+```bash
+python -m pip install '.[mujoco]'
+python examples/mujoco_panda.py --interactive-target
+```
+
+The amber target starts selected at the measured TCP. Hold **Ctrl + right mouse button** and drag to move it; **Ctrl + left mouse button** rotates it. **Shift** changes the drag plane/axis. The arm continuously follows the target, including after you release the mouse. Double-click the amber handle to select it again; **F6** moves the target back to the current TCP, and **Space** pauses/resumes.
+
+Interactive mode runs until you close the window or press Ctrl+C. Add `--control-mode ik-position` for position IK with position actuators, or `--duration 60` for a timed session. See the [interactive target guide](https://openghz.github.io/servopy/mujoco-panda/#拖动目标实时跟随) for mode restrictions and unreachable targets.
+
 Wheels and source distributions omit the Panda model; the installed demo downloads about 5 MB once, verifies its checksum, and caches it for offline reuse. A Git checkout can use its existing archive. The [Panda guide](https://openghz.github.io/servopy/mujoco-panda/) covers offline model paths, Ruckig smoothing, external targets, recording and measured tracking behavior.
 
 ## Documentation

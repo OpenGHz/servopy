@@ -11,7 +11,7 @@
 1. [快速上手](getting-started.md)：安装，完成一次无需显示器的运行。
 2. [实时伺服控制](realtime-servo.md)：在持续运行的循环中改变目标，观察反向与断流制动。
 3. [关键概念](concepts.md)：区分目标、实际反馈和参考，选择控制入口。
-4. [Panda 仿真](mujoco-panda.md)：在力矩、直接位控、IK 位控之间切换，接收实时外部目标。
+4. [Panda 仿真](mujoco-panda.md)：切换控制模式，在 viewer 拖动目标或接收实时外部目标。拖动功能需当前 main 源码。
 
 ![默认力矩模式的 Panda 仿真](media/panda-servo.gif)
 

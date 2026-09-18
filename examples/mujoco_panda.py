@@ -3,12 +3,13 @@
 Run after installing servo-py[mujoco]: servo-py-panda
 From a source checkout: python examples/mujoco_panda.py
 Position control: add --control-mode joint-position or --control-mode ik-position
+Drag a target in the viewer: add --interactive-target (torque or ik-position)
 Headless recording: MUJOCO_GL=egl python examples/mujoco_panda.py --headless --record demo.mp4
 """
 from __future__ import annotations
 
 import argparse
-from collections import Counter
+from collections import Counter, deque
 from contextlib import ExitStack, contextmanager, nullcontext
 from io import BytesIO
 import json
@@ -41,7 +42,7 @@ ARM_NAMES = tuple(f"joint{i}" for i in range(1, 8))
 CONTROL_MODES = ("torque", "joint-position", "ik-position")
 
 
-def load_panda(*, width=960, height=640, actuator_mode="torque"):
+def load_panda(*, width=960, height=640, actuator_mode="torque", interactive_target=False):
     """Load the pinned, unmodified Menagerie assets from an in-memory ZIP.
 
     Scene and actuator changes below are specific to this example. The source
@@ -80,7 +81,23 @@ def load_panda(*, width=960, height=640, actuator_mode="torque"):
     ET.SubElement(world, "geom", name="floor", type="plane", size="0 0 0.05", pos="0 0 -0.002", material="floor_mat")
     ET.SubElement(world, "light", pos="1 -1 2", dir="-0.5 0.5 -1", diffuse="0.8 0.8 0.8")
     target = ET.SubElement(world, "body", name="target", mocap="true")
-    ET.SubElement(target, "geom", type="sphere", size="0.015", rgba="1 0.55 0.16 0.95", contype="0", conaffinity="0")
+    if interactive_target:
+        # Native perturbations use the inertial frame. Keep it at the handle
+        # origin so RGB axis geoms do not shift its rotation pivot/frame.
+        ET.SubElement(target, "inertial", pos="0 0 0", mass="0.01", diaginertia="0.00001 0.00001 0.00001")
+    ET.SubElement(target, "geom", name="target_handle", type="sphere",
+                  size="0.022" if interactive_target else "0.015",
+                  rgba="1 0.55 0.16 0.95", contype="0", conaffinity="0")
+    if interactive_target:
+        # Selectable, non-contact pose handle. RGB axes make rotation visible.
+        for axis, endpoint, color in (
+            ("x", "0.08 0 0", "0.95 0.2 0.2 0.9"),
+            ("y", "0 0.08 0", "0.2 0.85 0.3 0.9"),
+            ("z", "0 0 0.08", "0.2 0.45 1 0.9"),
+        ):
+            ET.SubElement(target, "geom", name=f"target_{axis}", type="capsule",
+                          fromto=f"0 0 0 {endpoint}", size="0.0025", rgba=color,
+                          contype="0", conaffinity="0")
     return mujoco.MjModel.from_xml_string(ET.tostring(root, encoding="unicode"), assets=assets)
 
 
@@ -216,8 +233,10 @@ class PandaPositionIK:
 class PandaSimulation:
     def __init__(self, *, duration=18.0, width=960, height=640, control_mode="torque", ik_solver=None,
                  smoothing="none", max_jerk=30., differential_ik="dls", nullspace_gain=0.,
-                 joint_centering_gain=0., external_targets=False, recorder=None):
-        if not np.isfinite(duration) or duration < 6:
+                 joint_centering_gain=0., external_targets=False, interactive_target=False, recorder=None):
+        if duration is None and not interactive_target:
+            raise ValueError("duration=None requires interactive_target")
+        if duration is not None and (not np.isfinite(duration) or duration < 6):
             raise ValueError("duration must be at least 6 seconds")
         if control_mode not in CONTROL_MODES:
             raise ValueError(f"control_mode must be one of {CONTROL_MODES}")
@@ -225,10 +244,14 @@ class PandaSimulation:
             raise ValueError("ik_solver is only used with ik-position")
         if smoothing not in ("none", "ruckig") or differential_ik not in ("dls", "qp"):
             raise ValueError("unknown smoothing or differential IK backend")
+        if interactive_target and (external_targets or control_mode == "joint-position"):
+            raise ValueError("interactive_target requires torque or ik-position and no external target stream")
         self.control_mode = control_mode
         self.actuator_mode = "torque" if control_mode == "torque" else "position"
-        self.duration = float(duration)
-        self.model = load_panda(width=width, height=height, actuator_mode=self.actuator_mode)
+        self.duration = None if duration is None else float(duration)
+        self.interactive_target = interactive_target
+        self.model = load_panda(width=width, height=height, actuator_mode=self.actuator_mode,
+                                interactive_target=interactive_target)
         self.data = mujoco.MjData(self.model)
         mujoco.mj_resetDataKeyframe(self.model, self.data, self.model.key("home").id)
         self.backend = PandaKinematics(self.model)
@@ -251,6 +274,8 @@ class PandaSimulation:
         self.target = self.home_pose.copy()
         self.mocap_id = self.model.body_mocapid[self.model.body("target").id]
         self.data.mocap_pos[self.mocap_id] = self.target[:3, 3]
+        mujoco.mju_mat2Quat(self.data.mocap_quat[self.mocap_id], self.target[:3, :3].ravel())
+        mujoco.mj_forward(self.model, self.data)
         self.q_reference = self.data.qpos[self.backend.q_ids].copy()
         self.dq_reference = self.data.qvel[self.backend.v_ids].copy()
         self.kp = np.array([600, 600, 500, 500, 250, 200, 150])
@@ -265,11 +290,16 @@ class PandaSimulation:
         self.last_ik_error = None
         self.tick = 0
         self.result = None
-        self.history = []
-        self.trace = []
+        # Interactive sessions can run indefinitely. Keep a recent visual trail
+        # while accumulating metrics over the entire session.
+        self.history = deque(maxlen=2000) if interactive_target else []
+        self.trace = deque(maxlen=2000) if interactive_target else []
+        self._squared_error_sum = 0.0
+        self._max_position_error = 0.0
+        self._max_tracking_error = 0.0
         self.actions = Counter()
         self.flags = SafetyFlag.NONE
-        self.planned_path = np.empty((0, 3)) if external_targets else np.array([
+        self.planned_path = np.empty((0, 3)) if external_targets or interactive_target else np.array([
             self.desired_pose(t)[:3, 3] for t in np.linspace(1, duration - 3, 181)])
 
     @property
@@ -277,6 +307,13 @@ class PandaSimulation:
         return self.tick * CONTROL_DT
 
     def desired_pose(self, t):
+        if self.interactive_target:
+            pose = np.eye(4)
+            pose[:3, 3] = self.data.mocap_pos[self.mocap_id]
+            rotation = np.empty(9)
+            mujoco.mju_quat2Mat(rotation, self.data.mocap_quat[self.mocap_id])
+            pose[:3, :3] = rotation.reshape(3, 3)
+            return pose
         if self.external_targets:
             return self.target.copy()
         if self.control_mode == "joint-position":
@@ -285,7 +322,7 @@ class PandaSimulation:
         return target_pose(self.home_pose, t, self.duration)
 
     def command(self, now_ns):
-        if self.time >= self.duration - 1:
+        if self.duration is not None and self.time >= self.duration - 1:
             return StopCommand()
         if self.external_targets:
             command = self.targets.read()
@@ -315,6 +352,15 @@ class PandaSimulation:
             return JointPositionCommand(self.joint_target, now_ns)
         return self._prepare_ik(PoseCommand(self.target, now_ns), now_ns)
 
+    def reset_target_to_tcp(self):
+        """Move the interactive handle to measured TCP without resetting physics or Servo."""
+        if not self.interactive_target:
+            raise ValueError("reset_target_to_tcp requires interactive_target")
+        self.target = self.backend.fk(self.data.qpos[self.backend.q_ids])
+        self.data.mocap_pos[self.mocap_id] = self.target[:3, 3]
+        mujoco.mju_mat2Quat(self.data.mocap_quat[self.mocap_id], self.target[:3, :3].ravel())
+        mujoco.mj_forward(self.model, self.data)
+
     def _prepare_ik(self, command, now_ns):
         prepared = self.ik_adapter.solve(command, self.q_reference, now_ns=now_ns)
         if not prepared.success:
@@ -342,7 +388,11 @@ class PandaSimulation:
         reference = self.result.reference
         self.actions[self.result.action.name] += 1
         self.flags |= self.result.flags
-        self.data.mocap_pos[self.mocap_id] = self.target[:3, 3]
+        if not self.interactive_target:
+            # In interactive mode mocap is input owned by the viewer. Never
+            # overwrite a dragged handle with the previous/generated target.
+            self.data.mocap_pos[self.mocap_id] = self.target[:3, 3]
+            mujoco.mju_mat2Quat(self.data.mocap_quat[self.mocap_id], self.target[:3, :3].ravel())
         # Sample the actual reference interval, including Ruckig jerk phases.
         # qpos/qvel are never overwritten after initialization: motors drive mj_step.
         for substep in range(round(CONTROL_DT / PHYSICS_DT)):
@@ -368,26 +418,29 @@ class PandaSimulation:
         error = float(np.linalg.norm(actual - desired))
         self.trace.append(actual)
         self.history.append((self.time, error, self.result.diagnostics.tracking_error))
+        self._squared_error_sum += error * error
+        self._max_position_error = max(self._max_position_error, error)
+        self._max_tracking_error = max(self._max_tracking_error, self.result.diagnostics.tracking_error)
         return self.result
 
     def summary(self):
-        history = np.asarray(self.history)
         return {
             "mujoco_version": mujoco.__version__, "physics_hz": 500, "servo_hz": 100,
             "control_mode": self.control_mode, "actuator_mode": self.actuator_mode,
             "smoothing": self.smoothing, "differential_ik": self.differential_ik,
             "external_targets": self.external_targets, "last_input_error": self.last_input_error,
+            "interactive_target": self.interactive_target,
             "actuator_command_units": "Nm" if self.actuator_mode == "torque" else "rad",
             "ik_failures": self.ik_failures, "last_ik_error": self.last_ik_error,
             "simulated_seconds": self.time, "steps": self.tick, "feedback": "MuJoCo qpos/qvel",
-            "position_rmse_m": float(np.sqrt(np.mean(history[:, 1] ** 2))) if self.history else None,
-            "position_max_error_m": float(np.max(history[:, 1])) if self.history else None,
-            "final_position_error_m": float(history[-1, 1]) if self.history else None,
-            "max_joint_tracking_error_rad": float(np.max(history[:, 2])) if self.history else None,
+            "position_rmse_m": float(np.sqrt(self._squared_error_sum / self.tick)) if self.tick else None,
+            "position_max_error_m": float(self._max_position_error) if self.tick else None,
+            "final_position_error_m": float(self.history[-1][1]) if self.history else None,
+            "max_joint_tracking_error_rad": float(self._max_tracking_error) if self.tick else None,
             "final_action": self.result.action.name if self.result else None,
             "actions": dict(self.actions), "flags": [flag.name for flag in SafetyFlag if flag & self.flags],
             "servo_collision_monitor": "disabled",
-            "trajectory": "external targets" if self.external_targets else (
+            "trajectory": "interactive viewer target" if self.interactive_target else "external targets" if self.external_targets else (
                 "joint-space loop (TCP path from FK)" if self.control_mode == "joint-position" else "figure eight, fixed TCP orientation"),
         }
 
@@ -397,6 +450,16 @@ def camera():
     cam.lookat[:] = [0.30, 0.0, 0.43]
     cam.distance, cam.azimuth, cam.elevation = 1.85, 135, -24
     return cam
+
+
+def select_target(viewer, simulation):
+    """Call under viewer.lock(); select the mocap handle for native Ctrl-drag."""
+    perturb = viewer.perturb
+    perturb.active = perturb.active2 = 0
+    perturb.select = simulation.model.body("target").id
+    perturb.localpos[:] = 0
+    perturb.refpos[:] = simulation.data.mocap_pos[simulation.mocap_id]
+    perturb.refquat[:] = simulation.data.mocap_quat[simulation.mocap_id]
 
 
 def draw_paths(scene, simulation, *, clear=False):
@@ -434,7 +497,8 @@ def annotate(frame, simulation):
     action = simulation.result.action.name if simulation.result else "READY"
     draw.rectangle((0, image.height - 58, image.width, image.height), fill=(10, 18, 28, 220))
     draw.text((24, image.height - 48), f"t = {simulation.time:5.2f} s    TCP error = {error:5.1f} mm    {action}", fill="white", font=font)
-    draw.text((24, image.height - 25), "AMBER target path     CYAN measured TCP trail", fill=(78, 216, 233), font=font)
+    legend = "AMBER draggable target     CYAN measured TCP trail" if simulation.interactive_target else "AMBER target path     CYAN measured TCP trail"
+    draw.text((24, image.height - 25), legend, fill=(78, 216, 233), font=font)
     return np.asarray(image)
 
 
@@ -463,7 +527,8 @@ def main(argv=None):
     parser.add_argument("--control-mode", choices=CONTROL_MODES, default="torque",
                         help="torque: Cartesian Servo + torque PD (default); joint-position: joint targets + position actuators; ik-position: Python IK + position actuators.")
     parser.add_argument("--headless", action="store_true", help="Disable the viewer; run as fast as possible.")
-    parser.add_argument("--duration", type=float, default=18, help="Simulation seconds, minimum 6 (default: 18).")
+    parser.add_argument("--duration", type=float, default=None,
+                        help="Simulation seconds, minimum 6. Default: 18; interactive target runs until closed.")
     parser.add_argument("--record", type=Path, help="Write an MP4 from actual simulation frames.")
     parser.add_argument("--metrics", type=Path, help="Save the measured tracking summary as JSON.")
     parser.add_argument("--smoothing", choices=("none", "ruckig"), default="none")
@@ -472,6 +537,8 @@ def main(argv=None):
     parser.add_argument("--nullspace-gain", type=float, default=0., help="Posture gain towards Panda home joints.")
     parser.add_argument("--joint-centering-gain", type=float, default=0.)
     sources = parser.add_mutually_exclusive_group()
+    sources.add_argument("--interactive-target", action="store_true",
+                         help="Drag the viewer target with Ctrl+right mouse; Ctrl+left rotates. Requires torque or ik-position; F6 resets target to TCP.")
     sources.add_argument("--target-stdin", action="store_true", help="Read live JSONL targets; pace headless physics in wall time.")
     sources.add_argument("--targets", type=Path, help="Replay JSONL targets with simulation time in a time field (seconds).")
     parser.add_argument("--log", type=Path, help="Record feedback, accepted commands and reference endpoints as JSONL.")
@@ -479,8 +546,14 @@ def main(argv=None):
     parser.add_argument("--height", type=int, default=640)
     parser.add_argument("--fps", type=int, default=30)
     args = parser.parse_args(argv)
-    if not np.isfinite(args.duration) or args.duration < 6:
+    if args.duration is None and not args.interactive_target:
+        args.duration = 18.0
+    if args.duration is not None and (not np.isfinite(args.duration) or args.duration < 6):
         parser.error("--duration must be at least 6 seconds")
+    if args.interactive_target and args.headless:
+        parser.error("--interactive-target requires the viewer; remove --headless")
+    if args.interactive_target and args.control_mode == "joint-position":
+        parser.error("--interactive-target is a pose target; use --control-mode torque or ik-position")
     if args.width < 320 or args.height < 240 or args.width % 2 or args.height % 2:
         parser.error("Recording dimensions must be even, at least 320 x 240")
     if not 1 <= args.fps <= 100:
@@ -507,12 +580,16 @@ def main(argv=None):
     simulation = PandaSimulation(duration=args.duration, width=args.width, height=args.height, control_mode=args.control_mode,
         smoothing=args.smoothing, max_jerk=args.max_jerk, differential_ik=args.differential_ik,
         nullspace_gain=args.nullspace_gain, joint_centering_gain=args.joint_centering_gain,
-        external_targets=args.target_stdin or args.targets is not None)
+        external_targets=args.target_stdin or args.targets is not None,
+        interactive_target=args.interactive_target)
     paused = threading.Event()
+    reset_target = threading.Event()
 
     def key_callback(key):
         if key == 32:
             paused.clear() if paused.is_set() else paused.set()
+        elif key == 295 and args.interactive_target:  # GLFW_KEY_F6; avoids MuJoCo's letter shortcuts.
+            reset_target.set()  # Only the simulation thread touches physics.
 
     with ExitStack() as stack:
         if args.log:
@@ -540,7 +617,17 @@ def main(argv=None):
             with viewer.lock():
                 viewer.cam.lookat[:] = cam.lookat
                 viewer.cam.distance, viewer.cam.azimuth, viewer.cam.elevation = cam.distance, cam.azimuth, cam.elevation
+                if args.interactive_target:
+                    select_target(viewer, simulation)
             print("Viewer running. Space: pause/resume. Close window or Ctrl+C: exit.", flush=True)
+            if args.interactive_target:
+                print("Target selected. Ctrl+right drag: move; Ctrl+left drag: rotate; Shift: change plane/axis.\n"
+                      "Double-click the amber handle to select it again. F6: move target to current TCP.\n"
+                      "Drag gradually within reach; the arm follows subject to limits and IK feasibility.", flush=True)
+                if hasattr(viewer, "set_texts"):
+                    viewer.set_texts((mujoco.mjtFontScale.mjFONTSCALE_100, mujoco.mjtGridPos.mjGRID_BOTTOMLEFT,
+                                      "ServoPy | Interactive target\nCtrl+right: move | Ctrl+left: rotate\n"
+                                      "Shift: change plane | F6: target to TCP\nSpace: pause / resume", ""))
         renderer = writer = None
         if args.record:
             import imageio.v2 as imageio
@@ -551,7 +638,16 @@ def main(argv=None):
         next_frame, next_view, next_tick = 0.0, 0.0, time.perf_counter()
         target_index = 0
         try:
-            while simulation.time < args.duration - 1e-9 and (viewer is None or viewer.is_running()):
+            while (args.duration is None or simulation.time < args.duration - 1e-9) and (viewer is None or viewer.is_running()):
+                if args.interactive_target:
+                    # sync applies native mouse perturbations to mocap state.
+                    # Read that state in this cycle before advancing physics.
+                    viewer.sync()
+                    if reset_target.is_set():
+                        with viewer.lock():
+                            simulation.reset_target_to_tcp()
+                            select_target(viewer, simulation)
+                        reset_target.clear()
                 if paused.is_set():
                     viewer.sync()
                     time.sleep(0.02)
@@ -571,7 +667,8 @@ def main(argv=None):
                         draw_paths(viewer.user_scn, simulation, clear=True)
                 if viewer is not None:
                     if simulation.time >= next_view:
-                        viewer.sync()
+                        if not args.interactive_target:
+                            viewer.sync()
                         next_view += 1 / 30
                 if viewer is not None or args.target_stdin:
                     next_tick += CONTROL_DT
@@ -579,7 +676,7 @@ def main(argv=None):
         except KeyboardInterrupt:
             print("Demo interrupted; closing viewer and recording.", file=sys.stderr)
     summary = simulation.summary()
-    summary["completed"] = simulation.time >= args.duration - 1e-9
+    summary["completed"] = args.duration is not None and simulation.time >= args.duration - 1e-9
     summary["recording"] = {"fps": args.fps, "width": args.width, "height": args.height} if args.record else None
     print(json.dumps(summary, indent=2))
     if args.metrics:

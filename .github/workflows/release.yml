@@ -14,6 +14,7 @@ on:
       - examples/**
       - scripts/check_release.py
       - scripts/smoke_wheel.py
+      - scripts/smoke_panda_viewer.py
       - README.pypi.md
       - LICENSE
       - LICENSES/**
@@ -32,6 +33,7 @@ on:
       - examples/**
       - scripts/check_release.py
       - scripts/smoke_wheel.py
+      - scripts/smoke_panda_viewer.py
       - README.pypi.md
       - LICENSE
       - LICENSES/**
@@ -54,6 +56,32 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  viewer:
+    name: Interactive Panda viewer
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install viewer test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y xvfb xauth
+          CMAKE_BUILD_PARALLEL_LEVEL=2 python -m pip install '.[mujoco]' python-xlib pillow
+      - name: Drag, rotate, pause, reset and close the installed viewer
+        run: xvfb-run -a -s '-screen 0 1280x900x24' python scripts/smoke_panda_viewer.py
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: panda-viewer-check
+          path: outputs/panda-viewer/
+          retention-days: 7
+          if-no-files-found: ignore
+
   sdist:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -153,7 +181,7 @@ jobs:
         run: python scripts/smoke_wheel.py --mujoco
 
   verify:
-    needs: [sdist, wheels, ubuntu]
+    needs: [sdist, wheels, ubuntu, viewer]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:

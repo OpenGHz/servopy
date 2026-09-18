@@ -207,3 +207,117 @@ def test_external_joint_target_retains_timeout_and_records(tmp_path):
     assert len(rows) == 60
     assert all(row["command"]["stamp_ns"] == 0 for row in rows)
     assert np.max(abs(simulation.q_reference - simulation.home_q)) > .001
+
+
+def move_viewer_target(simulation, pose):
+    """Use the native mocap perturbation path used by a viewer mouse drag."""
+    perturb = mujoco.MjvPerturb()
+    perturb.select = simulation.model.body("target").id
+    perturb.active = mujoco.mjtPertBit.mjPERT_TRANSLATE | mujoco.mjtPertBit.mjPERT_ROTATE
+    perturb.refpos[:] = pose[:3, 3]
+    mujoco.mju_mat2Quat(perturb.refquat, pose[:3, :3].ravel())
+    mujoco.mjv_applyPerturbPose(simulation.model, simulation.data, perturb, 0)
+
+
+@pytest.mark.parametrize("mode,max_error,max_rotation", [("torque", .001, .002), ("ik-position", .008, .02)])
+@pytest.mark.parametrize("smoothing", ["none", "ruckig"])
+def test_interactive_mocap_pose_is_input_and_robot_follows_changes(mode, max_error, max_rotation, smoothing):
+    if smoothing == "ruckig":
+        pytest.importorskip("ruckig")
+    simulation = demo.PandaSimulation(duration=None, control_mode=mode,
+                                      interactive_target=True, smoothing=smoothing)
+    np.testing.assert_allclose(simulation.desired_pose(0), simulation.home_pose, atol=1e-12)
+    assert len(simulation.planned_path) == 0
+    body = simulation.model.body("target").id
+    handle_geoms = simulation.model.geom_bodyid == body
+    assert np.all(simulation.model.geom_contype[handle_geoms] == 0)
+    assert np.all(simulation.model.geom_conaffinity[handle_geoms] == 0)
+
+    first = simulation.backend.fk(simulation.home_q + [.1, -.04, 0, -.03, 0, .02, .04])
+    move_viewer_target(simulation, first)
+    for _ in range(25):
+        simulation.step()
+    assert np.max(np.abs(simulation.dq_reference)) > .01
+
+    # Change the pose before the previous motion has finished, including rotation.
+    final = simulation.backend.fk(simulation.home_q + [-.08, -.025, 0, -.04, 0, .02, -.03])
+    move_viewer_target(simulation, final)
+    # Jerk bounds allow a longer settling interval after an abrupt pose reversal.
+    for _ in range(1000 if smoothing == "ruckig" else 400):
+        result = simulation.step()
+        np.testing.assert_allclose(simulation.target, final, atol=1e-12)
+        assert np.all(np.abs(result.reference.dq) <= simulation.backend.limits.velocity + 1e-9)
+        assert np.all(np.abs(result.reference.ddq) <= simulation.backend.limits.acceleration + 1e-9)
+    np.testing.assert_allclose(simulation.desired_pose(simulation.time), final, atol=1e-12)
+    actual = simulation.backend.fk(simulation.data.qpos[simulation.backend.q_ids])
+    error = demo.pose_error(final, actual)
+    assert np.linalg.norm(error[:3]) < max_error
+    assert np.linalg.norm(error[3:]) < max_rotation
+    assert np.linalg.norm(actual[:3, 3] - simulation.home_pose[:3, 3]) > .03
+    assert simulation.summary()["interactive_target"]
+    assert simulation.ik_failures == 0
+
+
+def test_interactive_unreachable_ik_brakes_and_reset_moves_only_target():
+    simulation = demo.PandaSimulation(duration=None, control_mode="ik-position", interactive_target=True)
+    goal = simulation.backend.fk(simulation.home_q + [.08, -.04, 0, -.03, 0, .02, .02])
+    move_viewer_target(simulation, goal)
+    for _ in range(20):
+        simulation.step()
+    assert np.max(np.abs(simulation.dq_reference)) > .01
+    simulation.data.mocap_pos[simulation.mocap_id] = [10, 10, 10]
+    for _ in range(100):
+        result = simulation.step()
+        assert result.action in (Action.BRAKE, Action.HOLD)
+    assert result.action == Action.HOLD
+    assert simulation.ik_failures == 100
+    state = {field: getattr(simulation.data, field).copy() for field in ("qpos", "qvel")}
+    tick, reference = simulation.tick, simulation.q_reference.copy()
+    simulation.reset_target_to_tcp()
+    for field, value in state.items():
+        np.testing.assert_array_equal(getattr(simulation.data, field), value)
+    assert simulation.tick == tick
+    np.testing.assert_array_equal(simulation.q_reference, reference)
+    np.testing.assert_allclose(simulation.desired_pose(simulation.time), simulation.backend.fk(state["qpos"][simulation.backend.q_ids]), atol=1e-12)
+    simulation.step()
+    assert simulation.ik_failures == 100  # New target is accepted without replaying the unreachable one.
+
+
+def test_interactive_session_has_no_automatic_stop_and_retains_bounded_history():
+    simulation = demo.PandaSimulation(duration=None, interactive_target=True)
+    first = simulation.home_pose.copy()
+    first[:3, 3] += [0, .035, 0]
+    move_viewer_target(simulation, first)
+    for _ in range(2010):
+        simulation.step()
+    assert len(simulation.history) == len(simulation.trace) == 2000
+    assert simulation.summary()["position_max_error_m"] > max(row[1] for row in simulation.history)
+    # More than the original 18 seconds have elapsed; another drag still moves the arm.
+    move_viewer_target(simulation, simulation.home_pose)
+    for _ in range(10):
+        result = simulation.step()
+    assert result.action == Action.TRACK
+    assert np.max(np.abs(simulation.dq_reference)) > .01
+
+
+def test_interactive_explicit_duration_keeps_final_stop_segment():
+    simulation = demo.PandaSimulation(duration=6, interactive_target=True)
+    for tick in range(600):
+        simulation.data.mocap_pos[simulation.mocap_id, 1] = .02 * np.sin(tick * .01)
+        simulation.step()
+    assert simulation.result.action == Action.HOLD
+    assert simulation.time == pytest.approx(6)
+
+
+@pytest.mark.parametrize("args,message", [
+    (["--interactive-target", "--headless"], "requires the viewer"),
+    (["--interactive-target", "--control-mode", "joint-position"], "pose target"),
+    (["--interactive-target", "--target-stdin"], "not allowed"),
+    (["--interactive-target", "--targets", "unused.jsonl"], "not allowed"),
+])
+def test_interactive_cli_rejects_conflicting_modes_before_loading_assets(args, message, monkeypatch, capsys):
+    monkeypatch.setattr(demo, "load_panda", lambda **kwargs: pytest.fail("Invalid CLI should not load assets"))
+    with pytest.raises(SystemExit) as error:
+        demo.main(args)
+    assert error.value.code == 2
+    assert message in capsys.readouterr().err

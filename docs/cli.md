@@ -1,6 +1,6 @@
 # 命令行参考
 
-以下源码脚本从仓库根目录运行，支持 `--help`。安装 wheel 后也可从任意目录用 `python -m servo_py.examples.<模块名>` 运行，例如 `python -m servo_py.examples.track_pose`；Panda 另提供 `servo-py-panda` 命令。以下默认值对应 0.3.0；参数组合示例见相应教程。
+以下源码脚本从仓库根目录运行，支持 `--help`。安装 wheel 后也可从任意目录用 `python -m servo_py.examples.<模块名>` 运行，例如 `python -m servo_py.examples.track_pose`；Panda 另提供 `servo-py-panda` 命令。以下对应当前 main 源码；新增 `--interactive-target` 尚未包含在已发布的 PyPI 0.3.0 中。参数组合示例见相应教程。
 
 ## Panda 仿真
 
@@ -11,13 +11,14 @@
 | 参数 | 默认值 | 说明 |
 |---|---|---|
 | `--control-mode` | `torque` | `torque` / `joint-position` / `ik-position` |
-| `--headless` | 关闭 | 不启动 viewer；无实时 stdin 时尽快运行 |
-| `--duration` | `18` | 仿真秒，至少 6；内置轨迹会按时长变化 |
+| `--headless` | 关闭 | 不启动 viewer；无实时 stdin 时尽快运行，与交互拖动互斥 |
+| `--duration` | 普通模式 `18`；交互拖动不限时 | 仿真秒，显式设置时至少 6，最后一秒制动；内置轨迹按时长变化 |
 | `--smoothing` | `none` | `none` / `ruckig`；后者需 `.[ruckig]` |
 | `--max-jerk` | `30.0` | Ruckig 每关节 jerk，rad/s³ |
 | `--differential-ik` | `dls` | `dls` / `qp`；非默认设置仅用于 torque 模式 |
 | `--nullspace-gain` | `0.0` | 朝 home 姿态的次级增益，仅 torque |
 | `--joint-centering-gain` | `0.0` | 关节居中增益，仅 torque |
+| `--interactive-target` | 关闭 | 在 viewer 拖动目标位姿，支持 torque / ik-position，与 stdin / 文件目标互斥 |
 | `--target-stdin` | 关闭 | 实时 JSONL 输入，headless 也按墙钟推进 |
 | `--targets` | 无 | 带 time 字段的 JSONL 文件，与 stdin 互斥 |
 | `--log` | 无 | 写入每周期控制记录 |
@@ -27,7 +28,7 @@
 | `--height` | `640` | 录制高度，偶数且至少 240 |
 | `--fps` | `30` | 录制帧率，1–100 |
 
-viewer 的空格键暂停/继续。更多行为与退出解释见 [Panda 教程](mujoco-panda.md)；输入格式见 [记录教程](recording.md)。
+viewer 的空格键暂停/继续。交互目标初始已选中；Ctrl + 右键拖动平移、Ctrl + 左键旋转，Shift 切换平面/方向，F6 把目标移回实际 TCP。完整操作见[交互目标教程](mujoco-panda.md#拖动目标实时跟随)；流式输入格式见[记录教程](recording.md)。
 
 ## 位姿理想回放
 
