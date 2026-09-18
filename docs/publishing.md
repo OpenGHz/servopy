@@ -1,6 +1,6 @@
 # PyPI 发布
 
-发行包名为 **`servo-py`**，Python 导入名为 **`servo_py`**，GitHub 仓库名为 **`servopy`**。当前版本 `0.3.0` 的发布流程已加入仓库；首次上传尚未完成。构建成功不表示已经公开发布。
+发行包名为 **`servo-py`**，Python 导入名为 **`servo_py`**，GitHub 仓库名为 **`servopy`**。`0.3.0` 已完成 [TestPyPI 上传](https://test.pypi.org/project/servo-py/0.3.0/)及实际安装验证；**正式 PyPI 尚未发布**。
 
 ## 发行范围
 
@@ -21,7 +21,7 @@ Ubuntu 20.04 的 glibc 满足二进制基线，但默认 Python 3.8 不满足项
 
 [Python distributions 工作流](https://github.com/OpenGHz/servopy/actions/workflows/release.yml) 在 pull request、main 推送、手动运行和 GitHub Release 发布时执行：
 
-当前[验证运行](https://github.com/OpenGHz/servopy/actions/runs/35327133523)已通过，生成 10 个不含 Panda 模型的 wheel 和 1 个 sdist。wheel 约为 0.38–0.42 MB，测试条件及模型下载验证见[验证记录](validation.md#panda-model-download-and-smaller-distributions)。这次 main 构建没有向 TestPyPI 或 PyPI 上传。
+当前 [TestPyPI 工作流](https://github.com/OpenGHz/servopy/actions/runs/35327922513)已通过全部检查，并上传 10 个不含 Panda 模型的 wheel 和 1 个 sdist。wheel 约为 0.38–0.42 MB；测试条件及从 TestPyPI 的实际安装结果见[验证记录](validation.md#testpypi-publication-and-installation)。这次手动运行未触发正式 PyPI 上传。
 
 1. 检查 pyproject、CMake 和 C++ 绑定中的版本一致，构建 sdist 并检查 PyPI 元数据。
 2. 在原生 x86_64 / ARM64 runner 的 manylinux_2_28 容器内，从该 sdist 构建所有 wheel，并由 auditwheel 检查、修复依赖。
@@ -50,6 +50,8 @@ Workflow name 是文件名 `release.yml`，不是界面上显示的 `Python dist
 Trusted Publishing 使用 GitHub OIDC，不需要把 PyPI token 放进 GitHub Secrets 或发送给协作者。pending publisher 也不会预留包名，首次成功上传才会创建项目。参见 [PyPI 官方说明](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/)。
 
 ## 首次测试发布
+
+**`0.3.0` 已完成此步骤并通过实际安装验证。** 无需再次上传相同版本；维护者可以继续下一节的[正式发布](#正式发布)。以下保留测试发布与复现步骤。
 
 1. 在 **Actions → Python distributions → Run workflow** 选择 `main`，把 `destination` 设为 `testpypi`。
 2. 等全部构建、安装验证和 `testpypi` 作业成功，打开 [TestPyPI 项目](https://test.pypi.org/project/servo-py/0.3.0/) 确认文件。

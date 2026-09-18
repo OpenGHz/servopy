@@ -329,3 +329,28 @@ tests; Ubuntu 24.04 / Python 3.12 on ARM64 passed 176 tests with 5 optional
 Ruckig-related skips. All three Ubuntu jobs passed the installed Panda
 download/cache/offline checks. The complete-distribution gate passed, and
 publishing jobs remained skipped on this main-branch build.
+
+## TestPyPI publication and installation
+
+Date: 2026-09-18. The maintainer-triggered [TestPyPI workflow](https://github.com/OpenGHz/servopy/actions/runs/35327922513)
+completed successfully for commit `888f685467b802240ea0c8bc0cbc823402a7c287`.
+After the build, Ubuntu installation and artifact gates passed, Trusted
+Publishing uploaded all ten Linux wheels and the sdist to
+[TestPyPI 0.3.0](https://test.pypi.org/project/servo-py/0.3.0/). The production
+PyPI job was skipped, as configured for this event.
+
+A new CPython 3.12 / Linux x86_64 virtual environment installed NumPy 2.5.3
+and MuJoCo 3.13.0 from the production index, then installed only
+`servo-py==0.3.0` from TestPyPI with `--only-binary=:all: --no-deps`.
+The served CPython 3.12 x86_64 wheel is **417,750 bytes**. `pip check` passed.
+The package was imported from this environment's site-packages, not the
+checkout or a locally built wheel.
+
+The installed-wheel smoke check passed from a temporary directory with a
+fresh cache: the basic example completed 1,200 steps in HOLD with less than
+0.1 mm final error; Panda `--help` did not download a model; the headless
+Panda demo downloaded and verified the separate model, completed its
+18-second trajectory with less than 1 mm final error, and reloaded the
+cached model with network calls disabled. The installed package contains
+no Panda ZIP. This validates the TestPyPI-served artifact; production PyPI
+publication remains a separate step.

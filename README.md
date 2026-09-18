@@ -47,7 +47,7 @@ NumPy is the only required third-party Python runtime dependency. Building from 
 
 ## Quick start
 
-You need **Python 3.10 or newer**. The Linux release workflow builds wheels for CPython 3.10–3.14 on x86_64 and ARM64 (glibc 2.28+), including example code and small URDFs. Panda model assets are downloaded only when running that demo. **The first PyPI upload is pending**; see the [release guide](https://openghz.github.io/servopy/publishing/).
+You need **Python 3.10 or newer**. The Linux release workflow builds wheels for CPython 3.10–3.14 on x86_64 and ARM64 (glibc 2.28+), including example code and small URDFs. Panda model assets are downloaded only when running that demo. **TestPyPI installation is verified; the production PyPI release is pending**. See the [release guide](https://openghz.github.io/servopy/publishing/).
 
 Once the release is available, install in a virtual environment without a C++ compiler:
 

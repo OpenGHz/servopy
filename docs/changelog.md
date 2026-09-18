@@ -9,7 +9,7 @@
 - 从 wheel 和 sdist 排除 Panda 模型压缩包；示例首次使用时下载固定模型，经 SHA-256 校验后缓存，支持离线档案路径与缓存复用。
 - 可选 Ruckig 从 0.12.2 升至 0.19.4，覆盖较新 Python 的上游 x86_64 wheel；ARM64 不承诺该可选项免编译。
 - 增加 Ubuntu 二进制安装检查、独立 PyPI README，以及 TestPyPI / PyPI Trusted Publishing 流程。
-- 首次上传尚未完成，步骤见 [PyPI 发布](publishing.md)。
+- `0.3.0` 已上传 TestPyPI，并通过从测试站实际安装与示例运行验证；正式 PyPI 发布待完成，步骤见 [PyPI 发布](publishing.md)。
 
 ## 文档更新
 

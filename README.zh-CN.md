@@ -47,7 +47,7 @@
 
 ## 快速上手
 
-需要 **Python 3.10 或更新版本**。Linux 发布流水线为 CPython 3.10–3.14、x86_64 / ARM64（glibc 2.28+）构建包含示例代码和小型 URDF 的 wheel，Panda 模型仅在运行该示例时下载。**首次 PyPI 上传尚未完成**，步骤见[发布指南](https://openghz.github.io/servopy/publishing/)。
+需要 **Python 3.10 或更新版本**。Linux 发布流水线为 CPython 3.10–3.14、x86_64 / ARM64（glibc 2.28+）构建包含示例代码和小型 URDF 的 wheel，Panda 模型仅在运行该示例时下载。**TestPyPI 安装已验证，正式 PyPI 发布待完成**，步骤见[发布指南](https://openghz.github.io/servopy/publishing/)。
 
 发布完成后，可在虚拟环境直接安装，无需 C++ 编译器：
 

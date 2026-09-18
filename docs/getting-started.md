@@ -8,7 +8,7 @@
 
 Linux 发布矩阵为常规 CPython 3.10–3.14、x86_64 / ARM64、glibc 2.28 或更新。匹配 wheel 的用户不需要安装 C++ 编译器、CMake 或 Eigen。Ubuntu 22.04 / 24.04 的默认 Python 满足要求；Ubuntu 20.04 默认 Python 3.8 不满足，需要另行准备 Python 3.10 或更新环境。
 
-**首次 PyPI 上传尚未完成。** 以下命令在发布后可用；当前可先按下一节从源码安装，或按[发布指南](publishing.md)验证 CI 产物。
+**TestPyPI 安装已验证，正式 PyPI 发布待完成。** 以下命令在正式发布后可用；当前可先按下一节从源码安装，或按[发布指南](publishing.md#首次测试发布)从 TestPyPI 安装已上传的 `0.3.0`。
 
 ```bash
 python3 -m venv .venv
