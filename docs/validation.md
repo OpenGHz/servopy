@@ -419,3 +419,66 @@ in the run's `panda-viewer-check` artifact for seven days.
 This checks native viewer interaction and simulation behavior on a virtual
 display. It is not a hardware-control timing or physical-robot accuracy
 measurement.
+
+## Command filtering and direction-preserving limits
+
+Date: 2026-11-27. The current main branch adds `ButterworthCommandFilter`,
+`ServoConfig.preserve_direction`, `ServoRunner(command_filter=...)` and the
+Panda options `--command-filter-hz` and `--preserve-direction`; the published
+PyPI 0.3.0 package contains none of them. The MoveIt Servo baseline in NOTICE
+moved from 2.15.2 to 2.15.3. Between them, the three online smoothing plugins
+and the Servo parameter file are unchanged, and `servo.cpp` still applies
+smoothing as the last step of joint-state generation.
+
+Local Linux x86_64 / glibc 2.39 validation used GCC 13.3.0, CMake 3.28.3,
+CPython 3.12.3, NumPy 2.5.5, scikit-build-core 1.0.3, MuJoCo 3.17.0 and
+Ruckig 0.19.4. It passed **240 tests**. Pinocchio was not installed, so its
+parity module was skipped; this change does not touch kinematics. The
+standalone C++ build against Ubuntu's Eigen 3.4.0 compiled with no
+`-Wall -Wextra -Wpedantic` warnings and passed ctest, including a
+direction-preserving jog and rejection of a custom MotionGenerator.
+
+Filter tests confirm a gain of 1/√2 at the cutoff for 10 ms and 4 ms
+periods and unit DC gain. With variable periods, joint targets approach a step
+without overshoot. Continuous joints take the shortest branch, and Pose
+orientation follows the SO(3) geodesic. Stop, stale, future, malformed and
+unsupported commands pass through and reset the filter. A filtered stream
+brakes in the same step as an unfiltered one.
+
+Direction tests use two sliders whose acceleration limits differ by 10x. The
+reference velocity stays parallel to the command while accelerating,
+reversing and stopping (cross product ≤ 1e-12), and both joints stop in the
+same cycle. Per-joint clamping bends the direction by up to 0.096 in the
+same cross-product measure. Over 1,600 steps of random jog targets near the
+limits, 29 steps used the per-joint fallback and all carried `POSITION_LIMIT`.
+Velocity, acceleration and within-interval position bounds held throughout.
+On the planar arm, accelerating along a TCP twist bent its direction by
+16.4° with per-joint clamping and by 0.000002° with `preserve_direction`.
+
+Panda physics runs with a dragged target add 1 mm Gaussian jitter to a
+slow 40 mm arc. A 3 Hz command filter reduced the reference joint
+acceleration standard deviation to 0.22 of its unfiltered value in both
+torque and ik-position modes. Acceleration-limited steps fell from about
+325 to 2 out of 400, and RMS TCP error to the noise-free arc rose by 1.2–1.6 mm
+of filter lag. All three control modes finish the 18-second built-in path in
+HOLD with both options enabled. Filtering adds lag on that smooth path, so the
+TCP RMSE rose from 7.04 / 16.76 / 15.45 mm to 10.77 / 20.53 / 18.87 mm
+(torque / joint-position / ik-position). `preserve_direction` alone left
+every built-in-path metric unchanged, because these paths never reach the
+acceleration limits.
+
+The documentation checker passed 32 Markdown pages, 39 public names, 28
+configuration defaults, 27 CLI options and all 12 executable examples. The
+strict MkDocs build also passed. For commit `dfc63d4`, which contains the
+core and filter change, [Python distributions](https://github.com/OpenGHz/servopy/actions/runs/45951339257)
+passed the sdist, x86_64 and ARM64 wheel test suites, all three Ubuntu
+install checks and the interactive viewer job.
+[Documentation](https://github.com/OpenGHz/servopy/actions/runs/45951339156)
+passed and deployed as well. For commit `91d66fa`, which adds the Panda
+options, [Python distributions](https://github.com/OpenGHz/servopy/actions/runs/45957621264)
+passed the same jobs and [Documentation](https://github.com/OpenGHz/servopy/actions/runs/45957621387)
+deployed again.
+
+These are simulation and ideal-feedback results. The recommended 2–5 Hz
+cutoffs and the resulting lag have not been evaluated for teleoperation on a
+physical robot.
