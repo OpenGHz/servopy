@@ -75,20 +75,49 @@ def main():
                 return window
         return None
 
-    def screenshot(window, name):
+    def frame(window):
         geometry = window.get_geometry()
         pixels = window.get_image(0, 0, geometry.width, geometry.height, X.ZPixmap, 0xffffffff)
-        Image.frombytes("RGB", (geometry.width, geometry.height), pixels.data, "raw", "BGRX").save(output / name)
+        return Image.frombytes("RGB", (geometry.width, geometry.height), pixels.data, "raw", "BGRX")
 
-    def drag(window, button, dx, dy):
+    def screenshot(window, name):
+        frame(window).save(output / name)
+
+    def rendered(window):
+        # A mapped, focused GLFW window can stay blank (2 gray levels) after
+        # control records start; the rendered scene has over 200. Input sent
+        # before the viewer presents frames can be lost entirely.
+        return len(frame(window).convert("L").getcolors(256) or ()) >= 32
+
+    def target_pose():
+        records = rows()
+        return np.asarray(records[-1]["command"]["pose"]) if records else None
+
+    def drag(window, button, dx, dy, *, confirm=True):
+        # MuJoCo activates a perturbation only at the first viewer sync after
+        # its render thread handles the press. Motion before that moves the
+        # camera, and an early release cancels the drag. With confirm, nudge
+        # along the drag until the logged target moves, then do the full drag.
         geometry = window.get_geometry()
         x, y = geometry.width // 2, geometry.height // 2
         window.warp_pointer(x, y)
         connection.sync()
+        before = target_pose() if confirm else None
         key("Control_L", True)
         xtest.fake_input(connection, X.ButtonPress, button)
         connection.sync()
-        time.sleep(.15)  # Native viewer initializes its perturbation on sync.
+        time.sleep(.15)
+        if confirm:
+            scale = max(abs(dx), abs(dy))
+            deadline, nudge = time.monotonic() + 10, 0
+            while np.allclose(target_pose(), before, rtol=0, atol=1e-9):
+                if time.monotonic() > deadline:
+                    raise TimeoutError("viewer did not start the drag perturbation")
+                nudge += 1
+                window.warp_pointer(x + round(dx * nudge / scale), y + round(dy * nudge / scale))
+                connection.sync()
+                time.sleep(.1)
+            x, y = x + round(dx * nudge / scale), y + round(dy * nudge / scale)
         for step in range(1, 13):
             window.warp_pointer(x + round(dx * step / 12), y + round(dy * step / 12))
             connection.sync()
@@ -110,6 +139,7 @@ def main():
             window.set_input_focus(X.RevertToParent, X.CurrentTime)
             connection.sync()
             wait_for(lambda: connection.get_input_focus().focus == window, "viewer input focus")
+            wait_for(lambda: rendered(window), "first rendered viewer frame")
             initial = wait_for(lambda: after_time(.5), "first control records")
             initial_pose = np.asarray(initial["command"]["pose"])
             initial_q = np.asarray(initial["state"]["q"])
@@ -136,7 +166,7 @@ def main():
             time.sleep(.3)
             before_pause = rows()[-1]
             paused_records = len(rows())
-            drag(window, 3, -32, 16)
+            drag(window, 3, -32, 16, confirm=False)  # Paused: the log cannot confirm it.
             assert len(rows()) == paused_records, "Space did not pause the control loop"
             tap("F6")
             time.sleep(.3)
