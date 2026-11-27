@@ -10,6 +10,7 @@
 | 原生关节位置指令 | Python/C++ JointPosition、名称映射、连续关节、限位、超时、实际目标误差 |
 | 外部位置 IK | PositionIKAdapter 验证解、限位、连续性、位姿残差及源时间戳；失败制动 |
 | jerk / Ruckig | 可选 RuckigSmoothing、分段轨迹采样、连续极值检查、保留可行停止轨迹；验证变周期、反向、过期、限位和 Panda 三种模式 |
+| 命令滤波与方向保持 | ButterworthCommandFilter 按实际周期滤波全部运动命令，Stop/过期透传；preserve_direction 沿命令方向满足加速度与位置包络（当前 main） |
 | 微分 IK 插件 | C++/Python DifferentialIK 接口；异常、错误维度和非有限结果锁存 SOLVER_ERROR |
 | QP 与冗余控制 | 原生主动集盒约束 QP、零空间姿态和关节居中；对照穷举小规模最优解及七轴任务不变性 |
 | 周期调度与设备适配 | ServoRunner、最新目标邮箱、Device/CallbackDevice、SimulatedDevice；取消、停止、恢复、断流及过载处理 |

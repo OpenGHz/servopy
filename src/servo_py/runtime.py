@@ -81,7 +81,7 @@ class RunnerStats:
 class ServoRunner:
     def __init__(self, servo, device: Device, *, period=.01, max_lateness=None,
                  stop_timeout=5., commands=None, collision_source=None, recorder=None,
-                 clock_ns=time.monotonic_ns, sleep=time.sleep):
+                 command_filter=None, clock_ns=time.monotonic_ns, sleep=time.sleep):
         if not math.isfinite(period) or not 1e-9 <= period <= servo.config.max_dt:
             raise ValueError("period must be positive and no larger than Servo.max_dt")
         self.period_ns = round(period * 1e9)
@@ -95,6 +95,9 @@ class ServoRunner:
         self.servo, self.device = servo, device
         self.commands = commands if commands is not None else LatestCommand()
         self.collision_source, self.recorder = collision_source, recorder
+        # Optional filter(command, *, dt, now_ns) applied to each mailbox read;
+        # recordings contain the filtered command actually given to Servo.step.
+        self.command_filter = command_filter
         self.clock_ns, self.sleep = clock_ns, sleep
         self.max_lateness_ns = round(max_lateness * 1e9)
         self.stop_timeout_ns = round(stop_timeout * 1e9)
@@ -121,6 +124,8 @@ class ServoRunner:
             if velocity.ndim != 1 or not velocity.size or not np.all(np.isfinite(velocity)) or np.max(np.abs(velocity)) > 1e-4:
                 raise RuntimeError("recovery requires stopped joint feedback")
             self.servo.reset(state, now_ns=self.clock_ns())
+            if self.command_filter is not None:
+                self.command_filter.reset()
             self._cancel.clear()
             self.faulted = False
         except BaseException:
@@ -143,6 +148,8 @@ class ServoRunner:
             self._running.release()
             raise RuntimeError("runner fault is latched; recover before running")
         self.stats = RunnerStats()
+        if self.command_filter is not None:
+            self.command_filter.reset()
         deadline = self.clock_ns()
         stop_started = None
         try:
@@ -167,6 +174,8 @@ class ServoRunner:
                     self.stats.deadline_misses += 1
                     raise TimeoutError("feedback I/O exceeded the lateness budget")
                 command = StopCommand() if self._cancel.is_set() else self.commands.read()
+                if self.command_filter is not None:
+                    command = self.command_filter.filter(command, dt=self.period, now_ns=now)
                 collision = self.collision_source(state, now) if self.collision_source else None
                 result = self.servo.step(state, command, dt=self.period, now_ns=now, collision=collision)
                 if result.action == Action.REJECT:

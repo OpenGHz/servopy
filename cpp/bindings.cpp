@@ -91,7 +91,7 @@ PYBIND11_MODULE(_core, m) {
   FIELD(max_linear_speed) FIELD(max_angular_speed) FIELD(position_tolerance) FIELD(orientation_tolerance)
   FIELD(min_damping) FIELD(max_damping) FIELD(damping_threshold)
   FIELD(singularity_soft) FIELD(singularity_hard) FIELD(singularity_probe_step) FIELD(singularity_escape_epsilon)
-  FIELD(collision_required) FIELD(task_axes) FIELD(task_weights)
+  FIELD(collision_required) FIELD(preserve_direction) FIELD(task_axes) FIELD(task_weights)
   FIELD(nullspace_gain) FIELD(joint_centering_gain) FIELD(nullspace_reference)
 #undef FIELD
   py::class_<State>(m, "State")

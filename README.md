@@ -149,7 +149,7 @@ Wheels and source distributions omit the Panda model; the installed demo downloa
 |---|---|
 | Build a realtime control loop | [Realtime servo](https://openghz.github.io/servopy/realtime-servo/) · [Devices & scheduling](https://openghz.github.io/servopy/runtime/) |
 | Write a controller | [Joint control](https://openghz.github.io/servopy/joint-position/) · [Position IK](https://openghz.github.io/servopy/python-ik/) |
-| Tune or extend it | [Smoothing](https://openghz.github.io/servopy/smoothing/) · [QP & nullspace](https://openghz.github.io/servopy/solvers/) · [C++](https://openghz.github.io/servopy/cpp/) |
+| Tune or extend it | [Smoothing](https://openghz.github.io/servopy/smoothing/) · [Filtering](https://openghz.github.io/servopy/filtering/) · [QP & nullspace](https://openghz.github.io/servopy/solvers/) · [C++](https://openghz.github.io/servopy/cpp/) |
 | Connect and inspect | [Devices & scheduling](https://openghz.github.io/servopy/runtime/) · [Recording & replay](https://openghz.github.io/servopy/recording/) |
 | Look up an interface | [API](https://openghz.github.io/servopy/api/) · [Configuration](https://openghz.github.io/servopy/configuration/) · [Troubleshooting](https://openghz.github.io/servopy/troubleshooting/) |
 

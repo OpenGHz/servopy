@@ -94,6 +94,41 @@ bool feasible_velocity_interval(double q, double v0, int i, const Limits& limits
   }
   return lower <= upper;
 }
+
+// Scale s in [0, 1] with lower <= s * direction <= upper for every joint; the
+// largest such s when `largest`, otherwise the smallest. Empty sets return
+// nullopt. A zero component requires its box to contain zero.
+std::optional<double> ray_scale(const Vector& direction, const Vector& lower,
+                                const Vector& upper, bool largest) {
+  double s_lo = 0.0, s_hi = 1.0;
+  for (int i = 0; i < direction.size(); ++i) {
+    const double d = direction[i];
+    if (std::abs(d) <= eps) {
+      if (lower[i] > eps || upper[i] < -eps) return std::nullopt;
+      continue;
+    }
+    double a = lower[i] / d, b = upper[i] / d;
+    if (d < 0) std::swap(a, b);
+    s_lo = std::max(s_lo, a);
+    s_hi = std::min(s_hi, b);
+  }
+  if (s_lo > s_hi + 1e-12) return std::nullopt;
+  return largest ? std::max(s_hi, s_lo) : std::min(s_lo, s_hi);
+}
+
+// Direction-preserving selection inside a per-joint velocity box, following
+// MoveIt's AccelerationLimitedPlugin: approach the request along its own
+// direction; otherwise decelerate along the current velocity as quickly as
+// the box permits. The final clamp only removes rounding, except in the
+// per-joint fallback used when neither direction intersects the box.
+Vector collinear_velocity(const Vector& desired, const Vector& current,
+                          const Vector& lower, const Vector& upper) {
+  Vector velocity;
+  if (const auto toward = ray_scale(desired, lower, upper, true)) velocity = *toward * desired;
+  else if (const auto slowing = ray_scale(current, lower, upper, false)) velocity = *slowing * current;
+  else velocity = desired;
+  return velocity.cwiseMax(lower).cwiseMin(upper);
+}
 }  // namespace
 
 void Config::validate(int n) const {
@@ -131,6 +166,8 @@ ServoCore::ServoCore(std::shared_ptr<Kinematics> model, Limits limits, Config co
   n_ = model_->dof();
   limits_.validate(n_);
   config_.validate(n_);
+  if (config_.preserve_direction && motion_generator_)
+    throw std::invalid_argument("preserve_direction applies only to the default reference generator");
   if (config_.nullspace_reference.size() &&
       ((config_.nullspace_reference.array() < limits_.lower.array() + limits_.margin.array()).any() ||
        (config_.nullspace_reference.array() > limits_.upper.array() - limits_.margin.array()).any()))
@@ -397,7 +434,7 @@ Result ServoCore::step(const State& state, const Command& command, double dt,
       } catch (const std::exception& error) {
         return reject(result, SMOOTHING_ERROR | INFEASIBLE, std::string("motion generation failed: ") + error.what());
       }
-    } else {
+    } else if (!config_.preserve_direction) {
       next.dq.resize(n_);
       for (int i = 0; i < n_; ++i) {
         const double v0 = reference_->dq[i];
@@ -411,6 +448,24 @@ Result ServoCore::step(const State& state, const Command& command, double dt,
         if (std::abs(next.dq[i]) < 1e-12 && lo <= 0 && hi >= 0) next.dq[i] = 0.0;
         if (std::abs(next.dq[i] - acceleration_limited) > eps) result.flags |= POSITION_LIMIT;
       }
+    } else {
+      // The same feasible per-joint boxes as above, but one scale for all
+      // joints. Flags compare the acceleration-only and full-box selections.
+      const Vector& v0 = reference_->dq;
+      Vector lo(n_), hi(n_);
+      for (int i = 0; i < n_; ++i)
+        if (!feasible_velocity_interval(reference_->q[i], v0[i], i, limits_, dt, lo[i], hi[i]))
+          return reject(result, INFEASIBLE | POSITION_LIMIT, "no acceleration-bounded reference can respect joint limits");
+      const Vector reach = limits_.acceleration * dt;
+      const Vector acceleration_limited = collinear_velocity(desired, v0, v0 - reach, v0 + reach);
+      next.dq = collinear_velocity(desired, v0, lo, hi);
+      for (int i = 0; i < n_; ++i) {
+        if (std::abs(next.dq[i]) < 1e-12 && lo[i] <= 0 && hi[i] >= 0) next.dq[i] = 0.0;
+        if (std::abs(acceleration_limited[i] - desired[i]) > eps) result.flags |= ACCELERATION_LIMIT;
+        if (std::abs(next.dq[i] - acceleration_limited[i]) > eps) result.flags |= POSITION_LIMIT;
+      }
+    }
+    if (!motion_generator_) {
       const Vector delta = 0.5 * (reference_->dq + next.dq) * dt;
       next.q = model_->integrate(reference_->q, delta);
       next.ddq = (next.dq - reference_->dq) / dt;

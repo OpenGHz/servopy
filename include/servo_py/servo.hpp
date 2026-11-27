@@ -119,6 +119,11 @@ struct Config {
   double singularity_probe_step = 0.01;
   double singularity_escape_epsilon = 1e-6;
   bool collision_required = false;
+  // Default generator only: scale all joints by one factor so the reference
+  // velocity stays parallel to the request (or, if unreachable, to the current
+  // velocity while decelerating). Falls back to per-joint clamping only when
+  // the position stopping envelope excludes both directions.
+  bool preserve_direction = false;
   std::vector<int> task_axes{0, 1, 2, 3, 4, 5};
   Vector6 task_weights = Vector6::Ones();
   double nullspace_gain = 0.0;

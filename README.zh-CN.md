@@ -149,7 +149,7 @@ wheel 和源码发行包不包含 Panda 模型；安装后的示例首次运行�
 |---|---|
 | 编写实时控制循环 | [实时伺服](https://openghz.github.io/servopy/realtime-servo/) · [设备和调度](https://openghz.github.io/servopy/runtime/) |
 | 编写控制器 | [关节控制](https://openghz.github.io/servopy/joint-position/) · [位置 IK](https://openghz.github.io/servopy/python-ik/) |
-| 调整或扩展 | [轨迹平滑](https://openghz.github.io/servopy/smoothing/) · [QP 与零空间](https://openghz.github.io/servopy/solvers/) · [C++](https://openghz.github.io/servopy/cpp/) |
+| 调整或扩展 | [轨迹平滑](https://openghz.github.io/servopy/smoothing/) · [命令滤波](https://openghz.github.io/servopy/filtering/) · [QP 与零空间](https://openghz.github.io/servopy/solvers/) · [C++](https://openghz.github.io/servopy/cpp/) |
 | 接入与分析 | [设备和调度](https://openghz.github.io/servopy/runtime/) · [记录与回放](https://openghz.github.io/servopy/recording/) |
 | 查询接口 | [API](https://openghz.github.io/servopy/api/) · [配置](https://openghz.github.io/servopy/configuration/) · [排障](https://openghz.github.io/servopy/troubleshooting/) |
 

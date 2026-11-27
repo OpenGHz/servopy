@@ -94,6 +94,7 @@ adapter.solve(command, q_seed, *, now_ns) -> PositionIKResult
 | `DampedLeastSquares()` | 默认阻尼最小二乘；内核随后执行限位 |
 | `BoxQPSolver(max_iterations=200, tolerance=1e-9)` | 内置盒约束主动集 QP；无外部 QP 依赖 |
 | `RuckigSmoothing(max_jerk)` | 可选 jerk 后端；正标量或 `(n,)`，每个 Servo 独占一个实例 |
+| `ButterworthCommandFilter(servo, cutoff_hz)` | 命令低通（main）；`filter(command, *, dt, now_ns)` 返回滤波后命令，`reset()` 清除历史；Stop/过期/非法命令原样返回，见 [教程](filtering.md) |
 | `MotionGenerator` | 自定义受信任后端，实现 reset/generate/sample，见 [C++ 扩展接口](cpp.md) |
 
 请求的 J/task 已选轴、加权；bounds 已结合位置、速度、加速度。自定义求解器的异常或无效速度触发 SOLVER_ERROR；后端负责自己的整体轨迹契约。详见 [QP](solvers.md) 与 [Ruckig](smoothing.md)。
@@ -103,7 +104,8 @@ adapter.solve(command, q_seed, *, now_ns) -> PositionIKResult
 ```text
 ServoRunner(servo, device, *, period=0.01, max_lateness=None,
             stop_timeout=5.0, commands=None, collision_source=None,
-            recorder=None, clock_ns=time.monotonic_ns, sleep=time.sleep)
+            recorder=None, command_filter=None,
+            clock_ns=time.monotonic_ns, sleep=time.sleep)
 ```
 
 上式是签名参考，time 为标准库模块。`max_lateness=None` 默认取 Servo 的周期时序容差；显式值也不能超过它。
@@ -119,7 +121,7 @@ ServoRunner(servo, device, *, period=0.01, max_lateness=None,
 | `CallbackDevice` | 用同名关键字参数绑定四个 SDK 回调 |
 | `SimulatedDevice(q)` | 理想参考跟随设备，无动力学，仅用于集成检查 |
 
-`collision_source(state, now_ns)` 可返回每周期外部 CollisionSample。`recorder` 接受下述 record 调用。SDK 回调时间限制、写入采样与停止契约见 [运行指南](runtime.md)。
+`collision_source(state, now_ns)` 可返回每周期外部 CollisionSample。`command_filter`（main）接受带 `filter(command, *, dt, now_ns)` 与 `reset()` 的对象，如 ButterworthCommandFilter；每周期读取邮箱后调用，开始运行和恢复时复位。`recorder` 接受下述 record 调用，记录的是滤波后的命令。SDK 回调时间限制、写入采样与停止契约见 [运行指南](runtime.md)。
 
 ## 编码、记录与比较
 

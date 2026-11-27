@@ -44,7 +44,7 @@
 | `NONE` | 没有置位标志 |
 | `VELOCITY_LIMIT` | 目标速度触发缩放 |
 | `ACCELERATION_LIMIT` | 默认参考生成触发加速度限制 |
-| `POSITION_LIMIT` | 位置/停止包络限制；也可能伴随无效状态或不可行拒绝 |
+| `POSITION_LIMIT` | 位置/停止包络限制；也可能伴随无效状态或不可行拒绝；`preserve_direction` 退回逐关节裁剪时也会置位 |
 | `SINGULARITY_DECELERATION` | 进入奇异性减速区间 |
 | `SINGULARITY_HALT` | 奇异性策略请求制动 |
 | `LEAVING_SINGULARITY` | 局部探测判定请求运动有助于离开奇异区 |

@@ -57,6 +57,14 @@
 
 次级增益需有限且非负。姿态目标需满足有效限位和 margin。除增益、时序比例和布尔项外，其余标量阈值要求正有限值；`timing_tolerance` 允许 `[0,1]`。
 
+## 参考生成
+
+| 参数 | 默认值 | 含义 |
+|---|---|---|
+| `preserve_direction` | `False` | 默认参考生成器对所有关节使用同一比例，保持速度方向（main）；不能与 motion_generator 同时使用 |
+
+开启后加速度、速度、位置和停止约束不变，只改变在可行区间内如何选取速度；方向突变时会先沿原方向减速。算法与取舍见[命令滤波与方向保持](filtering.md#保持方向的加速度限制)。
+
 ## 关节限位与平滑参数
 
 `JointLimits` 与 `ServoConfig` 分开传入。`lower`、`upper`、`velocity`、`acceleration` 是 `(n,)`；`margin` 默认 `0.01`，可为标量或 `(n,)`。连续关节可使用无限位置边界。`servo.limits` 可查看控制器实际采用的副本。
@@ -64,6 +72,7 @@
 | 单独配置的接口 | 参数 | 默认行为 |
 |---|---|---|
 | `RuckigSmoothing` | `max_jerk` | 必填，正有限标量或向量 |
+| `ButterworthCommandFilter` | `cutoff_hz` | 必填，正有限值，且不超过 `1 / (4 * max_dt)` |
 | `PositionIKAdapter` | `max_joint_step` | None，不启用相对种子的连续性检查 |
 | `BoxQPSolver` | `max_iterations` / `tolerance` | 200 / 1e-9 |
 | `ServoRunner` | `period` / `stop_timeout` | 0.01 s / 5.0 s |

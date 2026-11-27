@@ -127,7 +127,8 @@ motion is allowed; other motion is slowed between soft and hard thresholds,
 and requests braking at the hard threshold. This is a local heuristic, not a
 global escape guarantee. Thresholds depend on model units, task weights and
 geometry, and must be tuned. Acceleration and position constraints can alter
-the requested Cartesian direction.
+the requested Cartesian direction unless preserve_direction is enabled (see
+below).
 
 Malformed or stale commands request braking while valid, fresh state remains
 available. Invalid feedback, missing required collision results, a zero
@@ -181,6 +182,31 @@ interval. Reset discards history and assumes zero initial reference acceleration
 recovery should occur after the device has stopped. Neither reset nor REJECT
 allows sampling the previous interval. Position-only hardware must implement
 compatible interpolation to reproduce reference constraints.
+
+## Direction-preserving limits and command filtering (main)
+
+preserve_direction changes only how the default generator selects a velocity
+inside the same per-joint feasible boxes (velocity, acceleration and sampled
+stopping envelope). It first takes the largest s in [0, 1] with s * desired
+inside every box. If that ray misses, it takes the smallest feasible s along the
+current reference velocity, decelerating without turning. If the position
+envelope excludes both rays, it falls back to per-joint clamping, which always
+sets POSITION_LIMIT. This mirrors MoveIt's AccelerationLimitedPlugin, with the
+envelope added. Stops become collinear and are paced by the slowest joint;
+abrupt direction changes slow down until the new direction becomes reachable.
+ACCELERATION_LIMIT compares the request with an acceleration-only selection,
+POSITION_LIMIT that selection with the final one. The option is rejected at
+construction together with a MotionGenerator, which owns its own contract.
+
+ButterworthCommandFilter is a Python command-side first-order low-pass filter
+with coefficient C = cot(pi * cutoff * dt) recomputed each call. Output weights
+are non-negative, so outputs stay within the convex hull of inputs (in the
+model's joint tangent space and on SO(3) for Pose orientation). The cutoff is
+bounded by 1 / (4 * max_dt) to keep C >= 1. Stop, stale, future, malformed and
+unsupported commands pass through unchanged and reset the filter, so braking
+and fault reporting are never delayed. The source timestamp is preserved, so
+filtering cannot extend command validity. It does not modify references; all
+core constraints apply to its output as to any other command.
 
 The separate Python ServoRunner uses an absolute monotonic schedule, a size-one
 command mailbox and an explicit Device stop/recover protocol. It rejects late

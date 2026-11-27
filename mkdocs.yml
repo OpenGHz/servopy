@@ -61,6 +61,7 @@ nav:
       - 关节位置与速度: joint-position.md
       - Python 位置 IK: python-ik.md
       - Ruckig 平滑: smoothing.md
+      - 命令滤波与方向保持: filtering.md
       - 微分 IK、QP 与零空间: solvers.md
       - 实时循环与设备: runtime.md
       - 外部目标、记录与对照: recording.md

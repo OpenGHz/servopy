@@ -49,7 +49,7 @@ target_link_libraries(app PRIVATE servo_py::core)
 | `StepResult` | `Result`，含 optional Reference |
 | `SerialChainModel` | `SerialChain` |
 
-C++ 不提供 Python URDF 加载器或命名命令映射。可以直接构建 Joint/SerialChain，或实现 Kinematics 连接自己的机器人模型。输入、坐标、时序和故障契约与 Python 保持一致。
+`Config::preserve_direction` 与 Python 的同名配置含义相同。ButterworthCommandFilter 只在 Python 中提供；C++ 应用需要命令滤波时，应在调用 `step` 之前自行处理命令。C++ 不提供 Python URDF 加载器或命名命令映射。可以直接构建 Joint/SerialChain，或实现 Kinematics 连接自己的机器人模型。输入、坐标、时序和故障契约与 Python 保持一致。
 
 ## 扩展接口
 

@@ -3,6 +3,15 @@
 #include <iostream>
 #include <stdexcept>
 
+struct NoMotion final : servo_py::MotionGenerator {
+  void reset() override {}
+  servo_py::MotionOutput generate(const servo_py::Reference& start, const servo_py::Vector&,
+      const std::optional<servo_py::Vector>&, double, const servo_py::Limits&) override {
+    return {start};
+  }
+  servo_py::Reference sample(double) const override { return {}; }
+};
+
 int main() {
   using namespace servo_py;
   Joint joint; joint.name = "slide"; joint.type = JointType::PRISMATIC;
@@ -58,5 +67,31 @@ int main() {
   if (!result.reference || result.reference->dq[0] <= 0 ||
       (qp_servo.sample_reference(.01).q - result.reference->q).norm() > 1e-10)
     throw std::runtime_error("C++ solver injection or reference sampling failed");
+  // Two sliders with unequal acceleration: one scale keeps the direction.
+  Joint second = joint; second.name = "lift"; second.axis = Eigen::Vector3d::UnitY();
+  Limits pair{Vector::Constant(2, -1), Vector::Constant(2, 1), Vector::Constant(2, 1),
+              (Vector(2) << 2, .2).finished(), Vector::Constant(2, .01)};
+  auto sliders = std::make_shared<SerialChain>(std::vector<Joint>{joint, second}, pair);
+  Config collinear = config; collinear.preserve_direction = true;
+  ServoCore direction_servo(sliders, pair, collinear);
+  State moving{Vector::Zero(2), Vector::Zero(2), 0};
+  const Vector jog_velocity = (Vector(2) << .8, .2).finished();
+  for (int k = 0; k < 120; ++k) {
+    Command jog; jog.type = CommandType::JOINT_JOG; jog.joint_velocity = jog_velocity;
+    jog.stamp_ns = k * 10000000LL;
+    const auto step = direction_servo.step(moving, jog, .01, jog.stamp_ns);
+    if (!step.reference) throw std::runtime_error(step.message);
+    const auto& ref = *step.reference;
+    if (std::abs(ref.dq[0] * jog_velocity[1] - ref.dq[1] * jog_velocity[0]) > 1e-12 ||
+        std::abs(ref.ddq[1]) > .200000001)
+      throw std::runtime_error("direction-preserving acceleration limit failed");
+    moving = {ref.q, ref.dq, ref.stamp_ns};
+  }
+  if ((moving.dq - jog_velocity).norm() > 1e-12) throw std::runtime_error("collinear jog did not converge");
+  bool rejected = false;
+  try {
+    ServoCore(sliders, pair, collinear, nullptr, std::make_shared<NoMotion>());
+  } catch (const std::invalid_argument&) { rejected = true; }
+  if (!rejected) throw std::runtime_error("preserve_direction must reject custom motion generators");
   std::cout << "Standalone C++ servo: PASS\n";
 }

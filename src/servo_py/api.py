@@ -68,6 +68,7 @@ class ServoConfig:
     singularity_probe_step: float = 0.01
     singularity_escape_epsilon: float = 1e-6
     collision_required: bool = False
+    preserve_direction: bool = False
     task_axes: Sequence[int] = (0, 1, 2, 3, 4, 5)
     task_weights: ArrayLike = (1., 1., 1., 1., 1., 1.)
     nullspace_gain: float = 0.0

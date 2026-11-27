@@ -9,6 +9,7 @@ from .urdf import load_urdf
 from .ik import PositionIKAdapter, PositionIKResult
 from ._core import DifferentialIK, DifferentialIKRequest, DampedLeastSquares, BoxQPSolver, MotionGenerator
 from .smoothing import RuckigSmoothing
+from .filtering import ButterworthCommandFilter
 from .runtime import CallbackDevice, Device, LatestCommand, RunnerStats, ServoRunner, SimulatedDevice
 from .recording import JsonlRecorder, command_from_dict, command_to_dict, compare_recordings, compare_joint_trajectory, read_records, replay
 
@@ -17,7 +18,7 @@ __all__ = [
     "PoseCommand", "SafetyFlag", "SerialChainModel", "Servo", "ServoConfig", "StepResult",
     "StopCommand", "TwistCommand", "PositionIKAdapter", "PositionIKResult", "load_urdf", "__version__",
     "DifferentialIK", "DifferentialIKRequest", "DampedLeastSquares", "BoxQPSolver", "MotionGenerator",
-    "RuckigSmoothing",
+    "RuckigSmoothing", "ButterworthCommandFilter",
     "CallbackDevice", "Device", "LatestCommand", "RunnerStats", "ServoRunner", "SimulatedDevice",
     "JsonlRecorder", "command_from_dict", "command_to_dict", "compare_recordings", "compare_joint_trajectory", "read_records", "replay",
 ]
