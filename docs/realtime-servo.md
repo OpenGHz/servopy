@@ -84,7 +84,7 @@ print("Forward, reverse, command expired:", result.action.name)
 
 用 `ServoRunner` 按单调墙钟调度周期，并用设备协议读取反馈、发送区间参考。上游生产者通过 `runner.commands.publish(command)` 更新目标，单个消费线程执行 `runner.run()`。已有控制线程的应用也可以直接周期调用 `Servo.step()`。完整设备契约与 SDK 回调见[实时循环与设备](runtime.md)。
 
-Panda 示例可直接在 viewer 中拖动目标，让机械臂持续跟随。此选项位于 main 源码，需从源码安装：
+Panda 示例可直接在 viewer 中拖动目标，让机械臂持续跟随。此选项自 0.4.0 起提供；PyPI 安装改用 `servo-py-panda --interactive-target`：
 
 ```bash
 python examples/mujoco_panda.py --interactive-target

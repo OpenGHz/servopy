@@ -1,6 +1,6 @@
 # ServoPy：实时机器人伺服控制
 
-**Realtime robot control with C++ and Python.** ServoPy 面向持续运行的机器人控制循环：每个周期读取最新目标与实际关节反馈，更新下一控制区间的运动输出。本文档对应 **0.3.0**，涵盖独立于 ROS 的 C++ 内核、Python API 与 Panda / MuJoCo 示例。
+**Realtime robot control with C++ and Python.** ServoPy 面向持续运行的机器人控制循环：每个周期读取最新目标与实际关节反馈，更新下一控制区间的运动输出。本文档对应 **0.4.0**，涵盖独立于 ROS 的 C++ 内核、Python API 与 Panda / MuJoCo 示例。
 
 可以在运动中更新关节位置、关节速度、末端位姿或 Twist，让机器人持续响应遥操作、视觉反馈或上层任务。输入源和设备连接由应用提供；ServoPy 负责控制循环中的伺服计算、约束处理与参考更新。
 
@@ -11,7 +11,7 @@
 1. [快速上手](getting-started.md)：安装，完成一次无需显示器的运行。
 2. [实时伺服控制](realtime-servo.md)：在持续运行的循环中改变目标，观察反向与断流制动。
 3. [关键概念](concepts.md)：区分目标、实际反馈和参考，选择控制入口。
-4. [Panda 仿真](mujoco-panda.md)：切换控制模式，在 viewer 拖动目标或接收实时外部目标。拖动功能需当前 main 源码。
+4. [Panda 仿真](mujoco-panda.md)：切换控制模式，在 viewer 拖动目标或接收实时外部目标。拖动功能自 0.4.0 起提供。
 
 ![默认力矩模式的 Panda 仿真](media/panda-servo.gif)
 
@@ -23,7 +23,7 @@
 | 给机械臂发送关节目标 | [关节位置与速度](joint-position.md) | 运行完整控制与停止循环 |
 | 接入已有 Python IK | [位置 IK 教程](python-ik.md) | 验证解并转换成关节目标 |
 | 限制加速度变化 | [Ruckig 平滑](smoothing.md) | 正确采样 jerk 受限参考 |
-| 抑制输入抖动、保持末端运动方向 | [命令滤波与方向保持](filtering.md) | 平滑命令输入，加速受限时不偏离命令方向；需当前 main 源码 |
+| 抑制输入抖动、保持末端运动方向 | [命令滤波与方向保持](filtering.md) | 平滑命令输入，加速受限时不偏离命令方向；0.4.0 起 |
 | 换求解器、控制冗余姿态 | [微分 IK / QP / 零空间](solvers.md) | 配置或实现数值后端 |
 | 接入设备 SDK | [实时循环与设备](runtime.md) | 周期读取反馈、发送输出并处理停止与恢复 |
 | 发送实时目标或分析一段运行 | [输入、记录与对照](recording.md) | 生成日志、回放、量化差异 |

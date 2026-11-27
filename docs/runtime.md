@@ -60,7 +60,7 @@ runner.run()  # 其他线程调用 runner.cancel() 请求受控停止。
 
 邮箱始终只保留最新目标、复制数组、保留源时间戳，不排长队。断流使指令自然过期并制动；新的有效目标可以继续运动。`cancel()` 清除目标，忽略后续生产者输入并制动，参考 HOLD 且反馈速度接近零后调用设备 stop 并退出。`max_steps=N` 在 N 个周期后开始这一停止流程，实际总周期可能更多。完成或故障后使用 `recover()` 再运行；恢复不会重放目标。
 
-输入有抖动时可传入 `command_filter=ButterworthCommandFilter(servo, cutoff_hz=...)`（需当前 main 源码）。runner 每周期在读取邮箱之后、调用 Servo 之前滤波；Stop、取消和过期命令不经过滤波，开始运行和恢复时复位。记录中保存的是滤波后的命令。详见[命令滤波](filtering.md#命令低通滤波)。
+输入有抖动时可传入 `command_filter=ButterworthCommandFilter(servo, cutoff_hz=...)`（0.4.0 起）。runner 每周期在读取邮箱之后、调用 Servo 之前滤波；Stop、取消和过期命令不经过滤波，开始运行和恢复时复位。记录中保存的是滤波后的命令。详见[命令滤波](filtering.md#命令低通滤波)。
 
 调度基于绝对 deadline，避免相对 sleep 累积漂移。迟到预算不得大于 Servo 的 timing_tolerance。反馈 I/O、计算、输出或记录超预算，REJECT、异常及 Ctrl+C 都进入设备 stop，故障锁存；不补发过时周期。停止超过 `stop_timeout` 同样调用设备 stop。
 

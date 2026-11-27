@@ -2,7 +2,7 @@
 
 **目标：** 在 MuJoCo 中运行实时伺服控制循环，用实际动力学反馈持续跟踪目标，并比较三条控制路径。伺服循环为 100 Hz，物理积分为 500 Hz。前置：安装 `.[mujoco]`。所有源码命令从仓库根目录执行。
 
-通过 PyPI 安装后，无需源码仓库：安装 `servo-py[mujoco]`，将本页 `python examples/mujoco_panda.py` 替换为 **`servo-py-panda`** 即可。下文会标明仅在 main 源码中提供、尚未发布的选项。Panda 模型单独下载，不包含在 wheel 或源码发行包中。安装范围见[安装指南](getting-started.md)。
+通过 PyPI 安装后，无需源码仓库：安装 `servo-py[mujoco]`，将本页 `python examples/mujoco_panda.py` 替换为 **`servo-py-panda`** 即可。下文会标明 0.4.0 起提供的选项，0.3.0 不包含这些参数。Panda 模型单独下载，不包含在 wheel 或源码发行包中。安装范围见[安装指南](getting-started.md)。
 
 ## 先运行默认示例
 
@@ -21,7 +21,7 @@ python examples/mujoco_panda.py
 
 ## 拖动目标实时跟随
 
-**此功能已加入 main 源码，已发布的 PyPI 0.3.0 尚不包含 `--interactive-target`。** 先在最新仓库安装 `.[mujoco]`，再运行：
+**`--interactive-target` 自 0.4.0 起提供。** 安装 `.[mujoco]` 后运行；PyPI 安装改用 `servo-py-panda --interactive-target`：
 
 ```bash
 python examples/mujoco_panda.py --interactive-target
@@ -97,7 +97,7 @@ python examples/mujoco_panda.py --differential-ik qp --nullspace-gain 0.1 --smoo
 
 `--max-jerk` 默认 30 rad/s³。三种模式均可用 Ruckig；`--differential-ik`、`--nullspace-gain` 和 `--joint-centering-gain` 仅用于 torque 模式的内核 Pose/Twist 路径。位置 IK 的替换方式见 [IK 教程](python-ik.md)。
 
-拖动目标时手部抖动会直接进入命令，可加命令滤波和方向保持（需当前 main 源码）：
+拖动目标时手部抖动会直接进入命令，可加命令滤波和方向保持（0.4.0 起）：
 
 ```bash
 python examples/mujoco_panda.py --interactive-target --command-filter-hz 3 --preserve-direction

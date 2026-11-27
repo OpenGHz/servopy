@@ -2,16 +2,26 @@
 
 此处按功能版本记录变化；验证环境与数值结果集中保留在[验证记录](validation.md)。首次公开的 PyPI 发行版为 **0.3.0**；0.1.0 / 0.2.0 条目保留发布前的源码开发与接口迁移过程。
 
-## 开发中（main）
+## 0.4.0 — 2026-11-27
 
 - Panda 示例新增 `--interactive-target`：在 MuJoCo viewer 拖动和旋转目标，机械臂实时跟随，支持默认力矩与 IK 位控模式。
 - 交互目标初始位于实际 TCP 并自动选中；支持暂停期间拖动，F6 将目标移回当前 TCP，默认持续运行到关闭窗口。
 - 交互会话显示最近 20 秒轨迹，汇总指标覆盖整个会话；增加位姿更新、不可达目标制动、目标复位及原生鼠标事件检查。
-- 此功能尚未包含在已发布的 PyPI 0.3.0；操作见[交互目标教程](mujoco-panda.md#拖动目标实时跟随)。
+- 操作见[交互目标教程](mujoco-panda.md#拖动目标实时跟随)。
 - 新增 `ButterworthCommandFilter`：一阶 Butterworth 命令低通，系数随实际周期计算，支持 JointJog、Twist、JointPosition（含连续关节）和 Pose（SO(3) 姿态）。Stop、过期与非法命令原样透传，制动不受滞后影响。`ServoRunner` 新增 `command_filter=`。
 - 新增 `ServoConfig.preserve_direction`：默认参考生成器用同一比例缩放所有关节，加速与制动时保持命令方向；默认关闭，现有行为与数值不变。
-- 新增[命令滤波与方向保持](filtering.md)教程，对照 MoveIt Servo 的 Butterworth、加速度限制和 Ruckig 三种平滑插件。以上两项同样尚未包含在 PyPI 0.3.0。
+- 新增[命令滤波与方向保持](filtering.md)教程，对照 MoveIt Servo 的 Butterworth、加速度限制和 Ruckig 三种平滑插件。
 - Panda 示例新增 `--command-filter-hz` 与 `--preserve-direction`，可在拖动目标或内置轨迹上直接比较；metrics 汇总记录这两项设置。
+
+### 从 0.3.0 升级
+
+重新安装以更新 C++ 扩展。默认配置的参考数值与 0.3.0 相同：`preserve_direction` 默认关闭，命令滤波需显式创建。`ServoRunner` 的 `command_filter` 是新增关键字参数。
+
+`ServoConfig` 在 `collision_required` 之后新增 `preserve_direction` 字段，C++ `Config` 同样增加成员。按关键字构造的代码不受影响；按位置传参构造的 Python 代码需改为关键字参数。独立 C++ 工程需用新头文件重新编译。
+
+```bash
+python -m pip install --upgrade --only-binary=:all: 'servo-py==0.4.0'
+```
 
 ## 首次 PyPI 发布
 

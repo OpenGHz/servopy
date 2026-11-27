@@ -183,7 +183,7 @@ recovery should occur after the device has stopped. Neither reset nor REJECT
 allows sampling the previous interval. Position-only hardware must implement
 compatible interpolation to reproduce reference constraints.
 
-## Direction-preserving limits and command filtering (main)
+## Direction-preserving limits and command filtering (0.4.0)
 
 preserve_direction changes only how the default generator selects a velocity
 inside the same per-joint feasible boxes (velocity, acceleration and sampled

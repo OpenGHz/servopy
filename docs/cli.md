@@ -1,6 +1,6 @@
 # 命令行参考
 
-以下源码脚本从仓库根目录运行，支持 `--help`。安装 wheel 后也可从任意目录用 `python -m servo_py.examples.<模块名>` 运行，例如 `python -m servo_py.examples.track_pose`；Panda 另提供 `servo-py-panda` 命令。以下对应当前 main 源码；新增的 `--interactive-target`、`--command-filter-hz` 和 `--preserve-direction` 尚未包含在已发布的 PyPI 0.3.0 中。参数组合示例见相应教程。
+以下源码脚本从仓库根目录运行，支持 `--help`。安装 wheel 后也可从任意目录用 `python -m servo_py.examples.<模块名>` 运行，例如 `python -m servo_py.examples.track_pose`；Panda 另提供 `servo-py-panda` 命令。以下对应 0.4.0；`--interactive-target`、`--command-filter-hz` 和 `--preserve-direction` 自 0.4.0 起提供。参数组合示例见相应教程。
 
 ## Panda 仿真
 

@@ -6,7 +6,7 @@
 
 Stream joint positions, joint velocities, end-effector poses or twists while the robot moves. Each control cycle uses the latest target and measured joint feedback to update the next motion reference for your controller. Target sources can be teleoperation, vision feedback or other applications; the application supplies those inputs and the device connection.
 
-Use `Servo.step()` in your own loop or `ServoRunner` for periodic feedback and output callbacks, a latest-target mailbox, cancellation and recovery. Native URDF or optional Pinocchio kinematics, DLS or bounded QP solvers, and optional Ruckig jerk control support these continuous control updates. NumPy is the only required third-party Python runtime dependency.
+Use `Servo.step()` in your own loop or `ServoRunner` for periodic feedback and output callbacks, a latest-target mailbox, cancellation and recovery. Native URDF or optional Pinocchio kinematics, DLS or bounded QP solvers, optional Ruckig jerk control, command low-pass filtering and direction-preserving acceleration limits support these continuous control updates. NumPy is the only required third-party Python runtime dependency.
 
 The [realtime servo guide](https://openghz.github.io/servopy/realtime-servo/) demonstrates changing targets during motion and braking when the command stream expires. Realtime describes the ongoing control loop; the Python runner uses best-effort scheduling and does not guarantee hard real-time deadlines.
 
@@ -31,7 +31,7 @@ python -m pip install --only-binary=:all: 'servo-py[mujoco]'
 servo-py-panda --control-mode joint-position
 ```
 
-For a machine without a desktop, run `servo-py-panda --headless`. The default demo runs an 18-second simulation with a 100 Hz servo loop and 500 Hz physics. Choose `torque`, `joint-position` or `ik-position`; press Space to pause the viewer. Add `--target-stdin` to receive live JSONL targets while it runs; see the [streaming input guide](https://openghz.github.io/servopy/recording/#panda-外部目标与回放). Video recording also needs a working graphics backend.
+For a machine without a desktop, run `servo-py-panda --headless`. The default demo runs an 18-second simulation with a 100 Hz servo loop and 500 Hz physics. Choose `torque`, `joint-position` or `ik-position`; press Space to pause the viewer. Add `--interactive-target` to drag and rotate the target in the viewer, or `--target-stdin` to receive live JSONL targets while it runs; see the [streaming input guide](https://openghz.github.io/servopy/recording/#panda-外部目标与回放). Video recording also needs a working graphics backend.
 
 The wheel and source distribution **do not contain Panda model assets**. On first use the demo downloads a fixed, approximately 5 MB archive, verifies its SHA-256, and caches it under `~/.cache/servo-py` (or `$XDG_CACHE_HOME/servo-py`). Further runs reuse the cache offline. Installing or importing ServoPy, the basic URDF example and `servo-py-panda --help` do not download this model. For offline setup, supply the pinned archive via `SERVO_PY_PANDA_ARCHIVE=/path/to/panda.zip`; see the [model setup guide](https://openghz.github.io/servopy/mujoco-panda/#模型下载与离线运行). The small provenance manifest and license are included in the package.
 
