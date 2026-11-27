@@ -54,7 +54,7 @@ NumPy is the only required third-party Python runtime dependency. Building from 
 
 ## Quick start
 
-You need **Python 3.10 or newer**. [ServoPy 0.3.0 is available on PyPI](https://pypi.org/project/servo-py/0.3.0/) with Linux wheels for CPython 3.10–3.14 on x86_64 and ARM64 (glibc 2.28+), including example code and small URDFs. Panda model assets are downloaded only when running that demo.
+You need **Python 3.10 or newer**. [ServoPy 0.4.0 is available on PyPI](https://pypi.org/project/servo-py/0.4.0/) with Linux wheels for CPython 3.10–3.14 on x86_64 and ARM64 (glibc 2.28+), including example code and small URDFs. Panda model assets are downloaded only when running that demo.
 
 Install in a virtual environment without a C++ compiler:
 
@@ -126,7 +126,7 @@ The viewer runs an 18-second simulation with a 100 Hz servo loop and 500 Hz phys
 
 ### Drag a target in the viewer
 
-The current `main` checkout adds interactive pose tracking; this option is not included in the published PyPI 0.3.0 package yet. From the repository, run:
+Interactive pose tracking is available since 0.4.0. With the PyPI package, run `servo-py-panda --interactive-target`. From the repository, run:
 
 ```bash
 python -m pip install '.[mujoco]'
@@ -157,7 +157,7 @@ Wheels and source distributions omit the Panda model; the installed demo downloa
 
 ## Project status
 
-Release **0.3.0** passed installed-wheel checks on Ubuntu 22.04 and 24.04: **188 Python tests on x86_64**, and **176 on ARM64** with optional Ruckig checks skipped. Validation also includes a standalone C++ test and Panda dynamics in all three control modes. Conditions and results are preserved in the [validation record](https://openghz.github.io/servopy/validation/).
+Release **0.4.0** passed installed-wheel checks on Ubuntu 22.04 and 24.04: **243 Python tests on x86_64**, and **229 on ARM64** with 7 optional Ruckig checks skipped. Validation also includes a standalone C++ test and Panda dynamics in all three control modes. Conditions and results are preserved in the [validation record](https://openghz.github.io/servopy/validation/).
 
 The realtime servo loop outputs motion references for a downstream controller; the application owns feedback, actuator commands and device stopping. Physical-robot validation, geometric collision checking and hard real-time execution are outside the current verified scope. Position-mode Panda demos retain gravity-related tracking offsets. See the [roadmap](https://openghz.github.io/servopy/roadmap/) for capability boundaries.
 

@@ -12,6 +12,7 @@
 - 新增 `ServoConfig.preserve_direction`：默认参考生成器用同一比例缩放所有关节，加速与制动时保持命令方向；默认关闭，现有行为与数值不变。
 - 新增[命令滤波与方向保持](filtering.md)教程，对照 MoveIt Servo 的 Butterworth、加速度限制和 Ruckig 三种平滑插件。
 - Panda 示例新增 `--command-filter-hz` 与 `--preserve-direction`，可在拖动目标或内置轨迹上直接比较；metrics 汇总记录这两项设置。
+- `0.4.0` 已发布到[正式 PyPI](https://pypi.org/project/servo-py/0.4.0/)，先后通过 TestPyPI 与正式站的全新安装验证，记录见[验证记录](validation.md#version-040-publication-and-installation)。
 
 ### 从 0.3.0 升级
 

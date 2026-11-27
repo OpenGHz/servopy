@@ -482,3 +482,37 @@ deployed again.
 These are simulation and ideal-feedback results. The recommended 2–5 Hz
 cutoffs and the resulting lag have not been evaluated for teleoperation on a
 physical robot.
+
+## Version 0.4.0 publication and installation
+
+Date: 2026-11-27. Release `0.4.0` was built from commit
+`197d7daf7d809b9d8692df7a408e63bdfa5f336c`.
+
+The [TestPyPI workflow](https://github.com/OpenGHz/servopy/actions/runs/45959089516)
+first failed only in its interactive Panda viewer job. The first screenshot
+in that job was still blank when the mouse drag was sent, so the drag did not
+reach the target. The same job passed in the push-triggered run of the same
+commit. Re-running only the failed job passed, and the workflow uploaded ten
+wheels and one sdist to TestPyPI. A fresh CPython 3.12 / Linux x86_64
+environment outside the checkout installed `servo-py==0.4.0` from TestPyPI
+with NumPy from PyPI. `pip check` passed. The basic example finished in HOLD
+with a 9.8e-5 m position error, and the new filter and `preserve_direction`
+APIs worked from the wheel. With MuJoCo from PyPI, `servo-py-panda --headless`
+downloaded and cached the model and finished in HOLD with 7.04 mm TCP RMSE;
+adding `--command-filter-hz 3 --preserve-direction` gave 10.77 mm, matching
+the local results above.
+
+Publishing the GitHub pre-release `v0.4.0` triggered
+[the production workflow](https://github.com/OpenGHz/servopy/actions/runs/45960742930).
+All gates and the PyPI job succeeded on the first attempt. The
+[PyPI release](https://pypi.org/project/servo-py/0.4.0/) contains ten wheels
+of 0.39–0.43 MB and one sdist. Installed-wheel tests passed **243** on
+Ubuntu 22.04 / Python 3.10 and on Ubuntu 24.04 / Python 3.12 (x86_64), and
+**229** with 7 Ruckig tests skipped on Ubuntu 24.04 ARM64 / Python 3.12.
+
+A second fresh CPython 3.12 / Linux x86_64 environment installed
+`servo-py[mujoco]==0.4.0` from `https://pypi.org/simple` with
+`--only-binary=:all:` and no pip cache. `pip check` passed. The basic example,
+then the Panda demo with `--command-filter-hz 3 --preserve-direction`, both
+finished in HOLD; the Panda run reproduced the 10.77 mm RMSE. A following
+Panda run with network connections disabled reused the cached model.

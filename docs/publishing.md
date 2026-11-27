@@ -1,6 +1,6 @@
 # PyPI 发布
 
-发行包名为 **`servo-py`**，Python 导入名为 **`servo_py`**，GitHub 仓库名为 **`servopy`**。首个公开发行版 **`0.3.0` 已发布到[正式 PyPI](https://pypi.org/project/servo-py/0.3.0/)**，并通过全新环境的实际安装与示例运行验证。源码与版本说明见 [GitHub Release](https://github.com/OpenGHz/servopy/releases/tag/v0.3.0)。
+发行包名为 **`servo-py`**，Python 导入名为 **`servo_py`**，GitHub 仓库名为 **`servopy`**。首个公开发行版 **`0.3.0` 已发布到[正式 PyPI](https://pypi.org/project/servo-py/0.3.0/)**。当前最新版本为 **[`0.4.0`](https://pypi.org/project/servo-py/0.4.0/)**，按下述 TestPyPI → GitHub Release 流程发布，两次均通过全新环境的实际安装与示例运行验证，记录见[验证记录](validation.md#version-040-publication-and-installation)。版本说明见 [v0.4.0 Release](https://github.com/OpenGHz/servopy/releases/tag/v0.4.0) 与 [v0.3.0 Release](https://github.com/OpenGHz/servopy/releases/tag/v0.3.0)。
 
 ## 发行范围
 
@@ -98,7 +98,7 @@ servo-py-panda --headless
 
 发布后同步 README、快速上手和实际安装验证记录。后续版本重复 TestPyPI → GitHub Release 流程。
 
-PyPI 项目页面的描述和长文来自发行包元数据。GitHub 上修改 `README.pypi.md` 或 `pyproject.toml` 不会自动改写已发布的 `0.3.0` 页面；这些内容随下一版本发行更新。GitHub README 和文档站则随 main 更新。
+PyPI 项目页面的描述和长文来自发行包元数据。GitHub 上修改 `README.pypi.md` 或 `pyproject.toml` 不会自动改写已发布版本的页面；这些内容随下一版本发行更新。GitHub README 和文档站则随 main 更新。
 
 ## 本地排查
 

@@ -8,7 +8,7 @@
 
 Linux 发布矩阵为常规 CPython 3.10–3.14、x86_64 / ARM64、glibc 2.28 或更新。匹配 wheel 的用户不需要安装 C++ 编译器、CMake 或 Eigen。Ubuntu 22.04 / 24.04 的默认 Python 满足要求；Ubuntu 20.04 默认 Python 3.8 不满足，需要另行准备 Python 3.10 或更新环境。
 
-**[ServoPy 0.3.0 已发布到正式 PyPI](https://pypi.org/project/servo-py/0.3.0/)。** 可直接在虚拟环境安装以下二进制发行包；发布与验证记录见[发布指南](publishing.md)。
+**[ServoPy 0.4.0 已发布到正式 PyPI](https://pypi.org/project/servo-py/0.4.0/)。** 可直接在虚拟环境安装以下二进制发行包；发布与验证记录见[发布指南](publishing.md)。
 
 ```bash
 python3 -m venv .venv
@@ -47,7 +47,7 @@ CMAKE_BUILD_PARALLEL_LEVEL=2 python -m pip install .
 python -c "import servo_py; print(servo_py.__version__)"
 ```
 
-预期打印 `0.3.0`。后续命令均在已激活的环境中执行；含 `.[extra]`、`examples/` 或 `tests/` 路径的源码命令要求位于仓库根目录。若已有克隆，先进入目录；更新 C++ 源码后必须重新安装，`git pull` 本身不会更新已安装的扩展。
+预期打印 `0.4.0`。后续命令均在已激活的环境中执行；含 `.[extra]`、`examples/` 或 `tests/` 路径的源码命令要求位于仓库根目录。若已有克隆，先进入目录；更新 C++ 源码后必须重新安装，`git pull` 本身不会更新已安装的扩展。
 
 ## 2. 跑通基础示例
 

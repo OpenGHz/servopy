@@ -54,7 +54,7 @@
 
 ## 快速上手
 
-需要 **Python 3.10 或更新版本**。[ServoPy 0.3.0 已发布到 PyPI](https://pypi.org/project/servo-py/0.3.0/)，提供 CPython 3.10–3.14、x86_64 / ARM64（glibc 2.28+）的 Linux wheel，包含示例代码和小型 URDF。Panda 模型仅在运行该示例时下载。
+需要 **Python 3.10 或更新版本**。[ServoPy 0.4.0 已发布到 PyPI](https://pypi.org/project/servo-py/0.4.0/)，提供 CPython 3.10–3.14、x86_64 / ARM64（glibc 2.28+）的 Linux wheel，包含示例代码和小型 URDF。Panda 模型仅在运行该示例时下载。
 
 可在虚拟环境直接安装，无需 C++ 编译器：
 
@@ -126,7 +126,7 @@ servo-py-panda --control-mode joint-position
 
 ### 在 viewer 中拖动目标
 
-当前 `main` 源码已提供交互位姿跟踪；已发布的 PyPI 0.3.0 尚不包含此选项。在仓库目录运行：
+交互位姿跟踪自 0.4.0 起提供。通过 PyPI 安装时运行 `servo-py-panda --interactive-target`；在仓库目录运行：
 
 ```bash
 python -m pip install '.[mujoco]'
@@ -157,7 +157,7 @@ wheel 和源码发行包不包含 Panda 模型；安装后的示例首次运行�
 
 ## 项目状态
 
-发行版本 **0.3.0** 已通过 Ubuntu 22.04 / 24.04 的安装验证：**x86_64 通过 188 项 Python 测试**，**ARM64 通过 176 项**，跳过可选 Ruckig 检查。验证还包括独立 C++ 测试和 Panda 三种控制模式的动力学仿真。条件和结果保存在[验证记录](https://openghz.github.io/servopy/validation/)中。
+发行版本 **0.4.0** 已通过 Ubuntu 22.04 / 24.04 的安装验证：**x86_64 通过 243 项 Python 测试**，**ARM64 通过 229 项**，跳过 7 项可选 Ruckig 检查。验证还包括独立 C++ 测试和 Panda 三种控制模式的动力学仿真。条件和结果保存在[验证记录](https://openghz.github.io/servopy/validation/)中。
 
 实时伺服循环输出供下游控制器执行的运动参考；反馈获取、执行器命令和设备停止由应用负责。目前尚未完成真机验证、几何碰撞检查或硬实时执行验证，Panda 位控演示保留重力导致的跟踪偏差。完整能力边界见[路线图](https://openghz.github.io/servopy/roadmap/)。
 
