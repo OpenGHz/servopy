@@ -97,6 +97,14 @@ python examples/mujoco_panda.py --differential-ik qp --nullspace-gain 0.1 --smoo
 
 `--max-jerk` 默认 30 rad/s³。三种模式均可用 Ruckig；`--differential-ik`、`--nullspace-gain` 和 `--joint-centering-gain` 仅用于 torque 模式的内核 Pose/Twist 路径。位置 IK 的替换方式见 [IK 教程](python-ik.md)。
 
+拖动目标时手部抖动会直接进入命令，可加命令滤波和方向保持（需当前 main 源码）：
+
+```bash
+python examples/mujoco_panda.py --interactive-target --command-filter-hz 3 --preserve-direction
+```
+
+`--command-filter-hz` 对交给 Servo 的命令低通：torque 模式滤 Pose 目标，ik-position 模式滤 IK 解出的关节目标，joint-position 模式滤内置关节轨迹。`--preserve-direction` 需与 `--smoothing none` 一起使用。原理与取舍见[命令滤波与方向保持](filtering.md)。
+
 ## 外部目标与控制日志
 
 ```bash

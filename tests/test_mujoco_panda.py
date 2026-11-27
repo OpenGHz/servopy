@@ -321,3 +321,78 @@ def test_interactive_cli_rejects_conflicting_modes_before_loading_assets(args, m
         demo.main(args)
     assert error.value.code == 2
     assert message in capsys.readouterr().err
+
+
+def noisy_interactive_run(mode, steps=400, sigma=.001, **options):
+    """Drag the handle along a slow arc with hand-like jitter; measure the response."""
+    from servo_py import SafetyFlag
+    rng = np.random.default_rng(3)
+    simulation = demo.PandaSimulation(duration=None, control_mode=mode, interactive_target=True, **options)
+    start, limits = simulation.home_pose[:3, 3].copy(), simulation.backend.limits
+    accelerations, errors, acceleration_limited = [], [], 0
+    for tick in range(steps):
+        t = tick * demo.CONTROL_DT
+        smooth = start + [.04 * np.sin(.8 * t), .04 * (1 - np.cos(.8 * t)), 0]
+        simulation.data.mocap_pos[simulation.mocap_id] = smooth + rng.normal(0, sigma, 3)
+        result = simulation.step()
+        assert result.action != Action.REJECT, result.message
+        ref = result.reference
+        assert np.all(np.abs(ref.dq) <= limits.velocity + 1e-9)
+        assert np.all(np.abs(ref.ddq) <= limits.acceleration + 1e-9)
+        acceleration_limited += bool(result.flags & SafetyFlag.ACCELERATION_LIMIT)
+        if tick >= 100:
+            accelerations.append(ref.ddq)
+            errors.append(np.linalg.norm(simulation.data.site_xpos[simulation.backend.site_id] - smooth))
+    assert simulation.ik_failures == 0
+    return np.std(accelerations), acceleration_limited, np.sqrt(np.mean(np.square(errors))), simulation
+
+
+@pytest.mark.parametrize("mode", ["torque", "ik-position"])
+def test_command_filter_smooths_a_jittery_dragged_target(mode):
+    raw_std, raw_limited, raw_error, _ = noisy_interactive_run(mode)
+    std, limited, error, simulation = noisy_interactive_run(mode, command_filter_hz=3.)
+    # Measured ddq std ratio 0.22 and ~325 -> 2 limited steps; lag adds 1.2-1.6 mm.
+    assert std < .4 * raw_std
+    assert limited < .1 * raw_limited
+    assert error < raw_error + .004
+    summary = simulation.summary()
+    assert summary["command_filter_hz"] == 3. and summary["preserve_direction"] is False
+
+
+@pytest.mark.parametrize("mode", ["torque", "joint-position", "ik-position"])
+def test_filtered_direction_preserving_physics_finishes_holding(mode):
+    simulation = demo.PandaSimulation(control_mode=mode, command_filter_hz=3., preserve_direction=True)
+    limits = simulation.backend.limits
+    for _ in range(1800):
+        result = simulation.step()
+        assert result.action != Action.REJECT, result.message
+        ref = result.reference
+        assert np.all(np.abs(ref.dq) <= limits.velocity + 1e-10)
+        assert np.all(np.abs(ref.ddq) <= limits.acceleration + 1e-10)
+        assert np.all(ref.q >= limits.lower + limits.margin - 1e-10)
+        assert np.all(ref.q <= limits.upper - limits.margin + 1e-10)
+    summary = simulation.summary()
+    assert simulation.result.action == Action.HOLD
+    assert summary["preserve_direction"] is True and summary["ik_failures"] == 0
+    # Filter lag on the smooth built-in path costs a few mm (measured 10.8-20.5 mm RMSE).
+    assert summary["position_rmse_m"] < .03
+
+
+def test_preserve_direction_with_ruckig_is_rejected_before_loading_assets(monkeypatch):
+    monkeypatch.setattr(demo, "load_panda", lambda **kwargs: pytest.fail("Invalid options should not load assets"))
+    with pytest.raises(ValueError, match="preserve_direction"):
+        demo.PandaSimulation(smoothing="ruckig", preserve_direction=True)
+
+
+@pytest.mark.parametrize("args,message", [
+    (["--preserve-direction", "--smoothing", "ruckig"], "--smoothing none"),
+    (["--command-filter-hz", "0"], "--command-filter-hz"),
+    (["--command-filter-hz", "5.5"], "--command-filter-hz"),
+    (["--command-filter-hz", "nan"], "--command-filter-hz"),
+])
+def test_filter_cli_rejects_invalid_options_before_loading_assets(args, message, monkeypatch, capsys):
+    monkeypatch.setattr(demo, "load_panda", lambda **kwargs: pytest.fail("Invalid CLI should not load assets"))
+    with pytest.raises(SystemExit) as error:
+        demo.main([*args, "--headless"])
+    assert error.value.code == 2
+    assert message in capsys.readouterr().err

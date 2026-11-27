@@ -1,6 +1,6 @@
 # 命令行参考
 
-以下源码脚本从仓库根目录运行，支持 `--help`。安装 wheel 后也可从任意目录用 `python -m servo_py.examples.<模块名>` 运行，例如 `python -m servo_py.examples.track_pose`；Panda 另提供 `servo-py-panda` 命令。以下对应当前 main 源码；新增 `--interactive-target` 尚未包含在已发布的 PyPI 0.3.0 中。参数组合示例见相应教程。
+以下源码脚本从仓库根目录运行，支持 `--help`。安装 wheel 后也可从任意目录用 `python -m servo_py.examples.<模块名>` 运行，例如 `python -m servo_py.examples.track_pose`；Panda 另提供 `servo-py-panda` 命令。以下对应当前 main 源码；新增的 `--interactive-target`、`--command-filter-hz` 和 `--preserve-direction` 尚未包含在已发布的 PyPI 0.3.0 中。参数组合示例见相应教程。
 
 ## Panda 仿真
 
@@ -18,6 +18,8 @@
 | `--differential-ik` | `dls` | `dls` / `qp`；非默认设置仅用于 torque 模式 |
 | `--nullspace-gain` | `0.0` | 朝 home 姿态的次级增益，仅 torque |
 | `--joint-centering-gain` | `0.0` | 关节居中增益，仅 torque |
+| `--command-filter-hz` | 关闭 | 交给 Servo 的命令先经 ButterworthCommandFilter 低通，取值 (0, 5] Hz；三种模式均可用 |
+| `--preserve-direction` | 关闭 | 启用 `ServoConfig.preserve_direction`；需 `--smoothing none` |
 | `--interactive-target` | 关闭 | 在 viewer 拖动目标位姿，支持 torque / ik-position，与 stdin / 文件目标互斥 |
 | `--target-stdin` | 关闭 | 实时 JSONL 输入，headless 也按墙钟推进 |
 | `--targets` | 无 | 带 time 字段的 JSONL 文件，与 stdin 互斥 |

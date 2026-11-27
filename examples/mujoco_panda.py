@@ -4,6 +4,7 @@ Run after installing servo-py[mujoco]: servo-py-panda
 From a source checkout: python examples/mujoco_panda.py
 Position control: add --control-mode joint-position or --control-mode ik-position
 Drag a target in the viewer: add --interactive-target (torque or ik-position)
+Smooth jittery input / keep motion direction: add --command-filter-hz 3 --preserve-direction
 Headless recording: MUJOCO_GL=egl python examples/mujoco_panda.py --headless --record demo.mp4
 """
 from __future__ import annotations
@@ -31,7 +32,7 @@ except ImportError as exc:
 from servo_py import (
     Action, JointPositionCommand, JointLimits, JointState, Kinematics, PoseCommand, PositionIKAdapter,
     SafetyFlag, Servo, ServoConfig, StopCommand, BoxQPSolver, RuckigSmoothing,
-    LatestCommand, JsonlRecorder, command_from_dict,
+    ButterworthCommandFilter, LatestCommand, JsonlRecorder, command_from_dict,
 )
 from servo_py.examples._panda_assets import panda_archive
 
@@ -39,6 +40,8 @@ ASSETS = Path(__file__).resolve().parent / "assets"
 CONTROL_DT = 0.01
 PHYSICS_DT = 0.002
 ARM_NAMES = tuple(f"joint{i}" for i in range(1, 8))
+# ButterworthCommandFilter accepts cutoffs up to 1 / (4 * ServoConfig.max_dt).
+MAX_COMMAND_FILTER_HZ = .25 / ServoConfig().max_dt
 CONTROL_MODES = ("torque", "joint-position", "ik-position")
 
 
@@ -233,7 +236,8 @@ class PandaPositionIK:
 class PandaSimulation:
     def __init__(self, *, duration=18.0, width=960, height=640, control_mode="torque", ik_solver=None,
                  smoothing="none", max_jerk=30., differential_ik="dls", nullspace_gain=0.,
-                 joint_centering_gain=0., external_targets=False, interactive_target=False, recorder=None):
+                 joint_centering_gain=0., external_targets=False, interactive_target=False, recorder=None,
+                 command_filter_hz=None, preserve_direction=False):
         if duration is None and not interactive_target:
             raise ValueError("duration=None requires interactive_target")
         if duration is not None and (not np.isfinite(duration) or duration < 6):
@@ -246,6 +250,8 @@ class PandaSimulation:
             raise ValueError("unknown smoothing or differential IK backend")
         if interactive_target and (external_targets or control_mode == "joint-position"):
             raise ValueError("interactive_target requires torque or ik-position and no external target stream")
+        if preserve_direction and smoothing != "none":
+            raise ValueError("preserve_direction applies to the default reference generator; use smoothing='none'")
         self.control_mode = control_mode
         self.actuator_mode = "torque" if control_mode == "torque" else "position"
         self.duration = None if duration is None else float(duration)
@@ -267,9 +273,15 @@ class PandaSimulation:
             position_gain=10.0, orientation_gain=10.0, max_linear_speed=0.25,
             joint_position_gain=10.0, joint_position_tolerance=1e-5,
             nullspace_gain=nullspace_gain, nullspace_reference=self.home_q,
-            joint_centering_gain=joint_centering_gain,
+            joint_centering_gain=joint_centering_gain, preserve_direction=preserve_direction,
         ), differential_ik=BoxQPSolver() if differential_ik == "qp" else None,
             motion_generator=RuckigSmoothing(max_jerk) if smoothing == "ruckig" else None)
+        self.preserve_direction = preserve_direction
+        self.command_filter_hz = None if command_filter_hz is None else float(command_filter_hz)
+        # Filters the command given to Servo.step: Pose in torque mode, the IK
+        # result in ik-position mode. Stop and stale targets pass through.
+        self.command_filter = (None if command_filter_hz is None else
+                               ButterworthCommandFilter(self.servo, cutoff_hz=command_filter_hz))
         self.home_pose = self.backend.fk(self.home_q)
         self.target = self.home_pose.copy()
         self.mocap_id = self.model.body_mocapid[self.model.body("target").id]
@@ -376,6 +388,8 @@ class PandaSimulation:
         self.target = self.desired_pose(self.time)
         state = JointState(self.data.qpos[self.backend.q_ids].copy(), self.data.qvel[self.backend.v_ids].copy(), now_ns)
         command = self.command(now_ns)
+        if self.command_filter is not None:
+            command = self.command_filter.filter(command, dt=CONTROL_DT, now_ns=now_ns)
         self.result = self.servo.step(state, command, dt=CONTROL_DT, now_ns=now_ns)
         if self.recorder is not None:
             self.recorder.record(now_ns, CONTROL_DT, state, command, self.result)
@@ -428,6 +442,7 @@ class PandaSimulation:
             "mujoco_version": mujoco.__version__, "physics_hz": 500, "servo_hz": 100,
             "control_mode": self.control_mode, "actuator_mode": self.actuator_mode,
             "smoothing": self.smoothing, "differential_ik": self.differential_ik,
+            "command_filter_hz": self.command_filter_hz, "preserve_direction": self.preserve_direction,
             "external_targets": self.external_targets, "last_input_error": self.last_input_error,
             "interactive_target": self.interactive_target,
             "actuator_command_units": "Nm" if self.actuator_mode == "torque" else "rad",
@@ -536,6 +551,10 @@ def main(argv=None):
     parser.add_argument("--differential-ik", choices=("dls", "qp"), default="dls")
     parser.add_argument("--nullspace-gain", type=float, default=0., help="Posture gain towards Panda home joints.")
     parser.add_argument("--joint-centering-gain", type=float, default=0.)
+    parser.add_argument("--command-filter-hz", type=float, default=None,
+                        help=f"Low-pass cutoff for commands before Servo.step, at most {MAX_COMMAND_FILTER_HZ:g} Hz. Default: off.")
+    parser.add_argument("--preserve-direction", action="store_true",
+                        help="Scale all joints together under acceleration/position limits; requires --smoothing none.")
     sources = parser.add_mutually_exclusive_group()
     sources.add_argument("--interactive-target", action="store_true",
                          help="Drag the viewer target with Ctrl+right mouse; Ctrl+left rotates. Requires torque or ik-position; F6 resets target to TCP.")
@@ -562,6 +581,11 @@ def main(argv=None):
         parser.error("--record expects an .mp4 filename")
     if not args.headless and sys.platform.startswith("linux") and not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
         parser.error("No display found. Run on your desktop for the viewer, or use --headless (MUJOCO_GL=egl when recording).")
+    if args.command_filter_hz is not None and not (np.isfinite(args.command_filter_hz) and
+                                                   0 < args.command_filter_hz <= MAX_COMMAND_FILTER_HZ):
+        parser.error(f"--command-filter-hz must be in (0, {MAX_COMMAND_FILTER_HZ:g}]")
+    if args.preserve_direction and args.smoothing != "none":
+        parser.error("--preserve-direction applies to the default generator; use --smoothing none")
     if args.control_mode != "torque" and (args.differential_ik != "dls" or args.nullspace_gain or args.joint_centering_gain):
         parser.error("Differential IK and nullspace options apply to torque/Pose mode; ik-position uses the position IK adapter.")
     scheduled = []
@@ -581,7 +605,8 @@ def main(argv=None):
         smoothing=args.smoothing, max_jerk=args.max_jerk, differential_ik=args.differential_ik,
         nullspace_gain=args.nullspace_gain, joint_centering_gain=args.joint_centering_gain,
         external_targets=args.target_stdin or args.targets is not None,
-        interactive_target=args.interactive_target)
+        interactive_target=args.interactive_target,
+        command_filter_hz=args.command_filter_hz, preserve_direction=args.preserve_direction)
     paused = threading.Event()
     reset_target = threading.Event()
 

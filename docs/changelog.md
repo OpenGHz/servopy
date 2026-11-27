@@ -11,6 +11,7 @@
 - 新增 `ButterworthCommandFilter`：一阶 Butterworth 命令低通，系数随实际周期计算，支持 JointJog、Twist、JointPosition（含连续关节）和 Pose（SO(3) 姿态）。Stop、过期与非法命令原样透传，制动不受滞后影响。`ServoRunner` 新增 `command_filter=`。
 - 新增 `ServoConfig.preserve_direction`：默认参考生成器用同一比例缩放所有关节，加速与制动时保持命令方向；默认关闭，现有行为与数值不变。
 - 新增[命令滤波与方向保持](filtering.md)教程，对照 MoveIt Servo 的 Butterworth、加速度限制和 Ruckig 三种平滑插件。以上两项同样尚未包含在 PyPI 0.3.0。
+- Panda 示例新增 `--command-filter-hz` 与 `--preserve-direction`，可在拖动目标或内置轨迹上直接比较；metrics 汇总记录这两项设置。
 
 ## 首次 PyPI 发布
 
