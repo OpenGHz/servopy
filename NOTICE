@@ -1,7 +1,10 @@
 ServoPy is an independent implementation informed by the MoveIt Servo
 architecture. It is not affiliated with or endorsed by the MoveIt project.
 Upstream examined: https://github.com/moveit/moveit2
-Commit: 093360fef2ea8269c607821b551ffb2d4bc5c9a8 (moveit_servo 2.15.2)
+Commit: 900e0e42a80d4d096e60864316a16640b0fe9372 (moveit_servo 2.15.3)
+Review of the changes since 2.15.2 (093360fef2ea) found nothing to port:
+Pose joint-limit halting (#3841) and the KDL IK pseudoinverse (#3804)
+required no ServoPy change.
 Upstream MoveIt Servo source is BSD-3-Clause; no MoveIt source is bundled.
 This implementation changes inverse kinematics, reference generation,
 singularity handling, timing and fault semantics; it is not behaviorally
